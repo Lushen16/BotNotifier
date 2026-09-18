@@ -76,7 +76,10 @@ Partial Class Form1
         LogActivity("Lista de janelas abertas atualizada.")
     End Sub
 
+    Private isUpdatingProfilesList As Boolean = False
+
     Private Sub LoadProfilesCombo()
+        isUpdatingProfilesList = True
         cmbProfiles.Items.Clear()
         For Each prof As UserProfile In config.Profiles
             cmbProfiles.Items.Add(prof)
@@ -89,10 +92,18 @@ Partial Class Form1
         ElseIf cmbProfiles.Items.Count > 0 Then
             cmbProfiles.SelectedIndex = 0
         End If
+        isUpdatingProfilesList = False
     End Sub
 
     Private Sub cmbProfiles_SelectedIndexChanged(sender As Object, e As EventArgs) Handles cmbProfiles.SelectedIndexChanged
-        If cmbProfiles.SelectedItem Is Nothing Then Return
+        If isUpdatingProfilesList OrElse cmbProfiles.SelectedItem Is Nothing Then Return
+
+        ' Salva o perfil anterior automaticamente antes de trocar
+        If currentProfile IsNot Nothing AndAlso Not Object.ReferenceEquals(currentProfile, cmbProfiles.SelectedItem) Then
+            SaveCurrentProfileValues()
+            ConfigManager.Save(config)
+        End If
+
         currentProfile = CType(cmbProfiles.SelectedItem, UserProfile)
         config.ActiveProfileId = currentProfile.Id
 
@@ -431,7 +442,7 @@ Partial Class Form1
     End Sub
 
     ' Salvar Perfil e Configurações
-    Private Sub btnSaveConfig_Click(sender As Object, e As EventArgs) Handles btnSaveConfig.Click
+    Private Sub SaveCurrentProfileValues()
         If currentProfile Is Nothing Then Return
 
         currentProfile.CharacterName = txtCharName.Text.Trim()
@@ -452,6 +463,32 @@ Partial Class Form1
         End If
         audio.FilterByProcessAudio = currentProfile.FilterByProcessAudio
 
+        ' Salvar estado e limiares dos 5 gatilhos
+        For Each trig In currentProfile.Triggers
+            Select Case trig.Id
+                Case "gm"
+                    trig.Enabled = chkGm.Checked
+                    trig.Threshold = tbGmThreshold.Value
+                Case "msg_player"
+                    trig.Enabled = chkMsgPlayer.Checked
+                    trig.Threshold = tbMsgPlayerThreshold.Value
+                Case "teleport"
+                    trig.Enabled = chkTeleport.Checked
+                    trig.Threshold = tbTeleportThreshold.Value
+                Case "pokemon"
+                    trig.Enabled = chkPoke.Checked
+                    trig.Threshold = tbPokeThreshold.Value
+                Case "seta"
+                    trig.Enabled = chkSeta.Checked
+                    trig.Threshold = tbSetaThreshold.Value
+            End Select
+        Next
+    End Sub
+
+    Private Sub btnSaveConfig_Click(sender As Object, e As EventArgs) Handles btnSaveConfig.Click
+        If currentProfile Is Nothing Then Return
+
+        SaveCurrentProfileValues()
         ConfigManager.Save(config)
         LoadProfilesCombo()
 
@@ -521,8 +558,22 @@ Partial Class Form1
         BringToFront()
     End Sub
 
+    Private Sub Form1_FormClosing(sender As Object, e As FormClosingEventArgs) Handles MyBase.FormClosing
+        Try
+            SaveCurrentProfileValues()
+            ConfigManager.Save(config)
+            audio.StopCapture()
+        Catch ex As Exception
+        End Try
+    End Sub
+
     Private Sub menuExit_Click(sender As Object, e As EventArgs) Handles menuExit.Click
-        audio.StopCapture()
+        Try
+            SaveCurrentProfileValues()
+            ConfigManager.Save(config)
+            audio.StopCapture()
+        Catch ex As Exception
+        End Try
         Application.Exit()
     End Sub
 End Class

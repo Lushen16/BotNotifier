@@ -1,0 +1,14 @@
+{
+  "name": "avisos-bot-sentinel",
+  "version": "1.0.0",
+  "description": "Sistema web de detecção de sons do sistema e disparo de alertas no Discord",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "express": "^4.19.2"
+  }
+}

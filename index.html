@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CHARM BOT NOTIFIER - Leitura de Áudio & Alertas Discord</title>
+  
+  <!-- FontAwesome Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  
+  <!-- CSS Principal -->
+  <link rel="stylesheet" href="/src/css/style.css">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220%22%20%220%22%20%22100%22%20%22100%22><text y=%22.9em%22 font-size=%2290%22>🚨</text></svg>">
+</head>
+<body>
+
+  <!-- Header Fixo -->
+  <header class="app-header">
+    <div class="logo-wrapper">
+      <div class="logo-icon">
+        <i class="fas fa-satellite-dish"></i>
+      </div>
+      <div>
+        <h1 class="logo-title">CHARM BOT NOTIFIER</h1>
+        <div class="logo-subtitle">Acoustic Auto-Capture & Discord Alerter</div>
+      </div>
+    </div>
+
+    <div class="header-status-area">
+      <div id="audioStatusBadge" class="status-badge status-disconnected">
+        <span class="status-dot"></span> Leitura de Áudio: DESLIGADA
+      </div>
+    </div>
+  </header>
+
+  <!-- Conteúdo Principal -->
+  <main class="app-container">
+
+    <!-- Hero de Leitura de Áudio do Sistema & Canvas -->
+    <section class="audio-control-hero">
+      <div class="hero-header">
+        <div class="hero-title-group">
+          <h2><i class="fas fa-wave-square"></i> Leitura Contínua de Áudio do Sistema</h2>
+          <p>Ligue a leitura para capturar automaticamente os sons que tocarem no jogo e classificá-los para envio no Discord.</p>
+        </div>
+        <div class="hero-actions">
+          <button id="helpAudioBtn" class="btn btn-outline" title="Como compartilhar áudio do sistema">
+            <i class="fas fa-question-circle"></i> Como Usar
+          </button>
+          <button id="connectAudioBtn" class="btn btn-primary btn-pulse">
+            <i class="fas fa-volume-up"></i> Ligar Leitura de Áudio
+          </button>
+        </div>
+      </div>
+
+      <!-- Canvas de Espectrograma e Onda -->
+      <div class="canvas-container">
+        <canvas id="audioVisualizer"></canvas>
+      </div>
+    </section>
+
+    <!-- BANDEJA DE SONS CAPTURADOS DO SISTEMA (DRAG & DROP) -->
+    <section class="captured-tray-section">
+      <div class="section-header-row">
+        <div>
+          <h2 class="section-title">
+            <i class="fas fa-microphone-alt"></i> Sons Capturados do Sistema
+          </h2>
+          <p class="section-subtitle">
+            Conforme os sons tocam no jogo, eles aparecem aqui. <strong>Arraste o som</strong> para a categoria desejada abaixo (Som do GM, Seta, etc.)!
+          </p>
+        </div>
+        <div class="section-actions">
+          <button id="simSoundBtn" class="btn btn-warning btn-sm" onclick="app.simulateCapturedSound()" title="Gerar som de teste para arrastar e soltar">
+            <i class="fas fa-magic"></i> Gerar Som de Teste
+          </button>
+          <button id="clearTrayBtn" class="btn btn-outline btn-sm" title="Limpar lista de sons capturados">
+            <i class="fas fa-broom"></i> Limpar Sons
+          </button>
+        </div>
+      </div>
+
+      <!-- Aviso quando a bandeja está vazia -->
+      <div id="trayEmptyNotice" class="tray-empty-box">
+        <div class="tray-empty-icon">🎧</div>
+        <div class="tray-empty-text">
+          <strong>Aguardando sons do jogo...</strong>
+          <p>Clique em <strong>"Ligar Leitura de Áudio"</strong> acima e produza qualquer som no jogo. O sistema detectará e fatiará o som automaticamente aqui para você arrastar!</p>
+        </div>
+      </div>
+
+      <!-- Grade dos Sons Capturados -->
+      <div id="capturedSoundsTray" class="captured-sounds-tray">
+        <!-- Itens inseridos dinamicamente -->
+      </div>
+    </section>
+
+    <!-- Grade Principal do Dashboard: Categorias de Alerta e Sidebar -->
+    <div class="main-dashboard-grid">
+
+      <!-- Coluna da Esquerda: Categorias e Zonas de Drop -->
+      <section class="triggers-section">
+        <div class="section-header-row">
+          <div>
+            <h2 class="section-title">
+              <i class="fas fa-tags"></i> Categorias de Alerta (Solte os Sons Aqui)
+            </h2>
+            <p class="section-subtitle">
+              Quando qualquer som classificado nestas categorias tocar novamente no jogo, o BOT NOTIFIER avisa no Discord!
+            </p>
+          </div>
+          <div class="section-actions">
+            <button id="resetPresetsBtn" class="btn btn-outline btn-sm" title="Restaurar categorias padrão">
+              <i class="fas fa-undo"></i> Restaurar Padrões
+            </button>
+            <button id="addNewTriggerBtn" class="btn btn-primary btn-sm">
+              <i class="fas fa-plus"></i> Nova Categoria
+            </button>
+          </div>
+        </div>
+
+        <!-- Grade com os Cards de Gatilho / Drop Zones -->
+        <div id="triggersGrid" class="triggers-grid">
+          <!-- Renderizado dinamicamente via app.js -->
+        </div>
+      </section>
+
+      <!-- Coluna da Direita: Configurações do Discord e Log de Detecções -->
+      <aside class="sidebar-panel">
+
+        <!-- Card de Configuração do Discord -->
+        <div class="panel-card">
+          <h3 class="panel-title">
+            <i class="fab fa-discord"></i> Notificações Discord
+          </h3>
+
+          <div class="form-group">
+            <label class="form-label" for="webhookUrlInput">URL do Webhook do Discord:</label>
+            <input type="password" id="webhookUrlInput" class="form-input" placeholder="https://discord.com/api/webhooks/..." autocomplete="off">
+            <small style="color: var(--text-muted); font-size: 11px;">
+              Cole aqui a URL de Webhook do canal onde quer receber os alertas.
+            </small>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="mentionTypeSelect">Notificar com Menção:</label>
+            <select id="mentionTypeSelect" class="form-select">
+              <option value="none">Nenhuma menção</option>
+              <option value="everyone">@everyone (Todos do Servidor)</option>
+              <option value="here">@here (Online)</option>
+              <option value="role">Cargo Específico</option>
+              <option value="user">Usuário Específico</option>
+            </select>
+          </div>
+
+          <div class="form-group" id="mentionIdGroup" style="display: none;">
+            <label class="form-label" id="mentionIdLabel" for="mentionIdInput">ID do Cargo / Usuário:</label>
+            <input type="text" id="mentionIdInput" class="form-input" placeholder="Ex: 108392849102938402">
+          </div>
+
+          <!-- Opções de Alerta Local -->
+          <div class="toggle-setting-row">
+            <div class="toggle-setting-info">
+              <span>Alarme Sonoro no PC</span>
+              <small>Toca sirene local na detecção</small>
+            </div>
+            <label class="switch">
+              <input type="checkbox" id="localSoundToggle" checked>
+              <span class="slider round"></span>
+            </label>
+          </div>
+
+          <div class="toggle-setting-row">
+            <div class="toggle-setting-info">
+              <span>Flash Visual na Tela</span>
+              <small>Pisca a tela em vermelho</small>
+            </div>
+            <label class="switch">
+              <input type="checkbox" id="screenFlashToggle" checked>
+              <span class="slider round"></span>
+            </label>
+          </div>
+
+          <div style="display: flex; gap: 8px; margin-top: 6px;">
+            <button id="saveSettingsBtn" class="btn btn-outline" style="flex: 1;">
+              <i class="fas fa-save"></i> Salvar
+            </button>
+            <button id="testWebhookBtn" class="btn btn-discord" style="flex: 1.4;">
+              <i class="fas fa-paper-plane"></i> Testar Webhook
+            </button>
+          </div>
+        </div>
+
+        <!-- Feed de Detecções Recentes -->
+        <div class="panel-card">
+          <div style="display: flex; justify-content: space-between; align-items: center;">
+            <h3 class="panel-title">
+              <i class="fas fa-history"></i> Histórico de Disparos
+            </h3>
+            <button class="btn-text-danger" onclick="document.getElementById('activityFeed').innerHTML = '';">
+              Limpar
+            </button>
+          </div>
+
+          <div id="activityFeed" class="activity-feed-container">
+            <!-- Eventos dinâmicos -->
+          </div>
+        </div>
+
+      </aside>
+
+    </div>
+  </main>
+
+  <!-- ==========================================================================
+       Modais do Sistema
+       ========================================================================== -->
+
+  <!-- Modal de Ajuda: Como Capturar Áudio do Sistema -->
+  <div id="helpModal" class="modal-backdrop">
+    <div class="modal-window">
+      <div class="modal-header">
+        <h3 class="modal-title"><i class="fas fa-info-circle"></i> Como Funciona o CHARM BOT NOTIFIER</h3>
+        <button class="btn-close-modal" onclick="app.closeHelpModal()">&times;</button>
+      </div>
+
+      <div class="help-step">
+        <div class="step-num">1</div>
+        <div class="step-text">
+          <strong>Ligue a Leitura de Áudio</strong>
+          <p>Clique em "Ligar Leitura de Áudio". Na janela do navegador, selecione sua tela ou janela do jogo e <strong>marque a opção "Compartilhar áudio do sistema"</strong>.</p>
+        </div>
+      </div>
+
+      <div class="help-step">
+        <div class="step-num">2</div>
+        <div class="step-text">
+          <strong>Produza o som no jogo</strong>
+          <p>Faça o som acontecer no jogo (ex: peça para alguém atirar seta, use uma magia ou espere o som tocar). O sistema capturará e fatiará o som na bandeja automaticamente!</p>
+        </div>
+      </div>
+
+      <div class="help-step">
+        <div class="step-num">3</div>
+        <div class="step-text">
+          <strong>Arraste e Solte na Categoria</strong>
+          <p>Escute o som na bandeja para conferir e <strong>arraste-o para "SOM DO GM", "SOM DE SETA"</strong> ou qualquer outra categoria. A partir daí, sempre que aquele som tocar, você receberá a notificação no Discord!</p>
+        </div>
+      </div>
+
+      <div class="help-highlight-box">
+        <i class="fas fa-bolt"></i>
+        <span><strong>Detecção em Milissegundos:</strong> O algoritmo espectral analisa 40 vezes por segundo sem consumir desempenho do seu computador!</span>
+      </div>
+
+      <button class="btn btn-primary" onclick="app.closeHelpModal(); app.toggleSystemAudio();" style="width: 100%;">
+        <i class="fas fa-check"></i> Entendi, Ligar Leitura Agora
+      </button>
+    </div>
+  </div>
+
+  <!-- Modal de Nova Categoria Customizada -->
+  <div id="addTriggerModal" class="modal-backdrop">
+    <div class="modal-window">
+      <div class="modal-header">
+        <h3 class="modal-title"><i class="fas fa-plus-circle"></i> Criar Nova Categoria de Alerta</h3>
+        <button class="btn-close-modal" onclick="app.closeAddTriggerModal()">&times;</button>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label" for="newTriggerName">Nome da Categoria:</label>
+        <input type="text" id="newTriggerName" class="form-input" placeholder="Ex: SOM DE HEAL, SOM DE BOSS, SOM DE ATAQUE">
+      </div>
+
+      <div class="form-group">
+        <label class="form-label" for="newTriggerDesc">Descrição:</label>
+        <input type="text" id="newTriggerDesc" class="form-input" placeholder="Ex: Alerta quando o boss ou habilidade específica tocar">
+      </div>
+
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px;">
+        <div class="form-group">
+          <label class="form-label" for="newTriggerIcon">Ícone:</label>
+          <select id="newTriggerIcon" class="form-select">
+            <option value="🚨">🚨 Alerta Geral</option>
+            <option value="🎯">🎯 Seta / Alvo</option>
+            <option value="👤">👤 Player Desconhecido</option>
+            <option value="🐉">🐉 Pokémon Raro / Shiny</option>
+            <option value="⚔️">⚔️ Batalha / PK</option>
+            <option value="🛡️">🛡️ Defesa / Heal</option>
+            <option value="💀">💀 Skull / Perigo</option>
+            <option value="⚡">⚡ Teleport / Flash</option>
+            <option value="🔔">🔔 Sino Notificação</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="newTriggerColor">Cor do Alerta:</label>
+          <select id="newTriggerColor" class="form-select">
+            <option value="#ff0844">🔴 Vermelho Alerta</option>
+            <option value="#ff4d00">🟠 Laranja Fogo</option>
+            <option value="#ffb703">🟡 Dourado / Amarelo</option>
+            <option value="#00f2fe">🔵 Ciano Neon</option>
+            <option value="#7928ca">🟣 Roxo / Violeta</option>
+            <option value="#00ff87">🟢 Verde Esmeralda</option>
+          </select>
+        </div>
+      </div>
+
+      <div style="display: flex; gap: 10px; margin-top: 10px;">
+        <button class="btn btn-outline" onclick="app.closeAddTriggerModal()" style="flex: 1;">Cancelar</button>
+        <button class="btn btn-primary" onclick="app.createCustomTrigger()" style="flex: 1.5;">
+          <i class="fas fa-check"></i> Criar Categoria
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Flutuante -->
+  <div id="toast" class="toast"></div>
+
+  <!-- Scripts da Aplicação -->
+  <script src="/src/js/storage.js"></script>
+  <script src="/src/js/visualizer.js"></script>
+  <script src="/src/js/discord.js"></script>
+  <script src="/src/js/audio-engine.js"></script>
+  <script src="/src/js/app.js"></script>
+</body>
+</html>

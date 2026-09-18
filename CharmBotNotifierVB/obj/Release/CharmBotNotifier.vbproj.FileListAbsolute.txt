@@ -1,0 +1,4 @@
+C:\Users\yago\Desktop\AVISOS BOT\CharmBotNotifierVB\obj\Release\CharmBotNotifier.vbprojResolveAssemblyReference.cache
+C:\Users\yago\Desktop\AVISOS BOT\CharmBotNotifierVB\bin\Release\CharmBotNotifier.exe
+C:\Users\yago\Desktop\AVISOS BOT\CharmBotNotifierVB\bin\Release\NAudio.dll
+C:\Users\yago\Desktop\AVISOS BOT\CharmBotNotifierVB\obj\Release\CharmBotNotifier.exe

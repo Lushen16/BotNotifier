@@ -31,7 +31,7 @@ Public Class DiscordNotifier
         End Try
 
         Dim payload As New Dictionary(Of String, Object) From {
-            {"username", If(Not String.IsNullOrEmpty(characterName), "Sentinel (" & characterName & ")", "Charm Bot Notifier")},
+            {"username", If(Not String.IsNullOrEmpty(characterName), "SentinelBot (" & characterName & ")", "SentinelBot")},
             {"avatar_url", "https://i.imgur.com/8Qp49X0.png"}
         }
 
@@ -53,7 +53,7 @@ Public Class DiscordNotifier
             New Dictionary(Of String, Object) From {{"name", "📊 Confiança"}, {"value", "**" & confidence.ToString() & "%** (Limiar: " & threshold.ToString() & "%)"}, {"inline", True}},
             New Dictionary(Of String, Object) From {{"name", "⏰ Horário"}, {"value", "`" & DateTime.Now.ToString("HH:mm:ss") & "`"}, {"inline", True}},
             New Dictionary(Of String, Object) From {{"name", "🖥️ Janela / VM"}, {"value", "`" & If(String.IsNullOrEmpty(windowTitle), "Todas as Janelas", windowTitle) & "`"}, {"inline", True}},
-            New Dictionary(Of String, Object) From {{"name", "🛡️ Sistema"}, {"value", "Charm Bot Notifier Desktop"}, {"inline", True}}
+            New Dictionary(Of String, Object) From {{"name", "🛡️ Sistema"}, {"value", "SentinelBot • Vigilância Acústica"}, {"inline", True}}
         }
 
         embed("fields") = fields

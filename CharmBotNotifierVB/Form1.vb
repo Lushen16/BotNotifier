@@ -30,6 +30,19 @@ Partial Class Form1
     End Sub
 
     Private Sub Form1_Load(sender As Object, e As EventArgs) Handles MyBase.Load
+        Try
+            Dim icoPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "sentinel.ico")
+            If File.Exists(icoPath) Then
+                Me.Icon = New Icon(icoPath)
+                notifyIcon1.Icon = Me.Icon
+            End If
+            Dim pngPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "sentinel.png")
+            If File.Exists(pngPath) Then
+                picSentinelLogo.Image = Image.FromFile(pngPath)
+            End If
+        Catch ex As Exception
+        End Try
+
         soundsDir = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "sounds")
         AudioEngine.GenerateDefaultTones(soundsDir)
 
@@ -45,7 +58,7 @@ Partial Class Form1
         ' Iniciar captura automaticamente
         audio.StartCapture()
 
-        LogActivity("Charm Bot Notifier pronto. Suporte a Múltiplos Personagens e Janelas ativo.")
+        LogActivity("SentinelBot pronto. Monitoramento acústico multiclient ativo.")
     End Sub
 
     Private Sub RefreshOpenWindows()
@@ -212,7 +225,7 @@ Partial Class Form1
     End Sub
 
     Private Sub btnToggleCapture_Click(sender As Object, e As EventArgs) Handles btnToggleCapture.Click
-        If btnToggleCapture.Text.Contains("Ligar") Then
+        If btnToggleCapture.Text.Contains("Ativar") OrElse btnToggleCapture.Text.Contains("Ligar") Then
             audio.StartCapture()
         Else
             audio.StopCapture()
@@ -226,15 +239,21 @@ Partial Class Form1
         End If
 
         If isConnected Then
-            lblStatus.Text = "🟢 OUVINDO ÁUDIO DO WINDOWS"
-            lblStatus.ForeColor = Color.FromArgb(0, 255, 135)
-            btnToggleCapture.Text = "⏹️ Desligar Leitura"
-            btnToggleCapture.BackColor = Color.FromArgb(180, 20, 50)
+            lblStatus.Text = "🟢 SENTINELA ATIVO"
+            lblStatus.ForeColor = Color.FromArgb(0, 255, 194)
+            btnToggleCapture.Text = "⏹️ Parar Sentinela"
+            btnToggleCapture.NormalColor = Color.FromArgb(220, 38, 38)
+            btnToggleCapture.HoverColor = Color.FromArgb(239, 68, 68)
+            btnToggleCapture.BorderColor = Color.FromArgb(248, 113, 113)
+            btnToggleCapture.ForeColor = Color.White
         Else
-            lblStatus.Text = "🔴 LEITURA PARADA"
-            lblStatus.ForeColor = Color.FromArgb(240, 80, 80)
-            btnToggleCapture.Text = "▶️ Ligar Leitura de Áudio"
-            btnToggleCapture.BackColor = Color.FromArgb(0, 180, 216)
+            lblStatus.Text = "🔴 SISTEMA EM ESPERA"
+            lblStatus.ForeColor = Color.FromArgb(244, 63, 94)
+            btnToggleCapture.Text = "▶️ Ativar Sentinela"
+            btnToggleCapture.NormalColor = Color.FromArgb(0, 180, 230)
+            btnToggleCapture.HoverColor = Color.FromArgb(0, 220, 255)
+            btnToggleCapture.BorderColor = Color.FromArgb(0, 255, 255)
+            btnToggleCapture.ForeColor = Color.FromArgb(8, 12, 22)
         End If
 
         LogActivity(message)
@@ -290,7 +309,7 @@ Partial Class Form1
             System.Media.SystemSounds.Exclamation.Play()
         End If
 
-        notifyIcon1.ShowBalloonTip(3500, "Charm Bot Notifier [" & charName & "]", "Detectado: " & trigName & " (" & confidence.ToString() & "%)", ToolTipIcon.Warning)
+        notifyIcon1.ShowBalloonTip(3500, "SentinelBot [" & charName & "]", "Detectado: " & trigName & " (" & confidence.ToString() & "%)", ToolTipIcon.Warning)
 
         If Not String.IsNullOrEmpty(currentProfile.WebhookUrl) Then
             Dim colorMap As New Dictionary(Of String, String) From {
@@ -339,19 +358,23 @@ Partial Class Form1
     End Sub
 
     ' Gravação de Amostra
-    Private Sub ToggleRecording(triggerId As String, targetBtn As Button)
+    Private Sub ToggleRecording(triggerId As String, targetBtn As RoundedButton)
         Dim targetWav = Path.Combine(soundsDir, triggerId & ".wav")
 
         If Not audio.IsRecordingSample Then
             audio.StartRecordingSample(targetWav)
             activeRecordingTriggerId = triggerId
             targetBtn.Text = "⏹️ Parar"
-            targetBtn.BackColor = Color.FromArgb(220, 50, 50)
+            targetBtn.NormalColor = Color.FromArgb(220, 38, 38)
+            targetBtn.BorderColor = Color.FromArgb(248, 113, 113)
+            targetBtn.ForeColor = Color.White
             LogActivity("Gravando áudio do sistema para " & triggerId & "... Toque o som no jogo agora!")
         Else
             audio.StopRecordingSample()
             targetBtn.Text = "🎙️ Gravar"
-            targetBtn.BackColor = Color.FromArgb(40, 50, 75)
+            targetBtn.NormalColor = Color.FromArgb(36, 16, 26)
+            targetBtn.BorderColor = Color.FromArgb(244, 63, 94)
+            targetBtn.ForeColor = Color.FromArgb(254, 205, 211)
             activeRecordingTriggerId = ""
 
             Dim trig = currentProfile.Triggers.Find(Function(t) t.Id = triggerId)
@@ -493,7 +516,7 @@ Partial Class Form1
         LoadProfilesCombo()
 
         LogActivity("Perfil '" & currentProfile.CharacterName & "' e configurações salvos com sucesso!")
-        MessageBox.Show("Perfil de '" & currentProfile.CharacterName & "' salvo com sucesso!", "Charm Bot Notifier", MessageBoxButtons.OK, MessageBoxIcon.Information)
+        MessageBox.Show("Perfil de '" & currentProfile.CharacterName & "' salvo com sucesso!", "SentinelBot", MessageBoxButtons.OK, MessageBoxIcon.Information)
     End Sub
 
     ' Testar Webhook do Perfil
@@ -517,7 +540,7 @@ Partial Class Form1
             If InvokeRequired Then
                 Invoke(Sub()
                     btnTestWebhook.Enabled = True
-                    btnTestWebhook.Text = "🔔 Testar Webhook do Personagem"
+                    btnTestWebhook.Text = "🔔 Testar Webhook"
 
                     If sent Then
                         LogActivity("✅ Teste de [" & charName & "] enviado ao Discord!")
@@ -542,7 +565,7 @@ Partial Class Form1
             Hide()
             notifyIcon1.Visible = True
             Dim charName = If(currentProfile IsNot Nothing, currentProfile.CharacterName, "Personagem")
-            notifyIcon1.ShowBalloonTip(1800, "Charm Bot Notifier [" & charName & "]", "Vigiando o personagem em segundo plano perto do relógio!", ToolTipIcon.Info)
+            notifyIcon1.ShowBalloonTip(1800, "SentinelBot [" & charName & "]", "Sentinela vigilante em segundo plano!", ToolTipIcon.Info)
         End If
     End Sub
 

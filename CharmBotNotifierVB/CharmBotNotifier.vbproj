@@ -6,9 +6,10 @@
     <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
     <ProjectGuid>{A823B452-9F14-4B45-87CE-887413998D01}</ProjectGuid>
     <OutputType>WinExe</OutputType>
-    <StartupObject>CharmBotNotifier.Form1</StartupObject>
-    <RootNamespace>CharmBotNotifier</RootNamespace>
-    <AssemblyName>CharmBotNotifier</AssemblyName>
+    <StartupObject>SentinelBot.Form1</StartupObject>
+    <RootNamespace>SentinelBot</RootNamespace>
+    <AssemblyName>SentinelBot</AssemblyName>
+    <ApplicationIcon>sentinel.ico</ApplicationIcon>
     <FileAlignment>512</FileAlignment>
     <MyType>WindowsForms</MyType>
     <TargetFrameworkVersion>v4.5</TargetFrameworkVersion>
@@ -48,6 +49,7 @@
     <Reference Include="System.Core" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="RoundedControls.vb" />
     <Compile Include="AudioEngine.vb" />
     <Compile Include="ConfigManager.vb" />
     <Compile Include="DiscordNotifier.vb" />

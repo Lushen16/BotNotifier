@@ -25,6 +25,11 @@ Public Class AudioEngine
     ' Sons registrados
     Private registeredTriggers As New Dictionary(Of String, TriggerSignature)
 
+    ' Filtro de Áudio por Processo / Janela
+    Public Property TargetPid As Integer = 0
+    Public Property FilterByProcessAudio As Boolean = False
+    Private deviceEnumerator As NAudio.CoreAudioApi.MMDeviceEnumerator = Nothing
+
     ' Gravador de amostras
     Public IsRecordingSample As Boolean = False
     Private sampleWriter As WaveFileWriter = Nothing
@@ -180,10 +185,44 @@ Public Class AudioEngine
                 RaiseEvent MatchProgress(trigger.Id, percent)
 
                 If percent >= trigger.Threshold AndAlso (now - trigger.LastFired).TotalSeconds >= trigger.Cooldown Then
+                    ' Se o filtro por processo da janela estiver ativado, verifica se a janela/processo alvo emitiu áudio
+                    If FilterByProcessAudio AndAlso TargetPid > 0 Then
+                        Dim procPeak = GetProcessAudioPeak(TargetPid)
+                        If procPeak < 0.005F Then
+                            Continue For
+                        End If
+                    End If
+
                     trigger.LastFired = now
                     RaiseEvent SoundDetected(trigger.Id, percent)
                 End If
             Next
+        End SyncLock
+    End Sub
+
+    Public Function GetProcessAudioPeak(pid As Integer) As Single
+        If pid <= 0 Then Return 1.0F
+        Try
+            If deviceEnumerator Is Nothing Then
+                deviceEnumerator = New NAudio.CoreAudioApi.MMDeviceEnumerator()
+            End If
+            Dim device = deviceEnumerator.GetDefaultAudioEndpoint(NAudio.CoreAudioApi.DataFlow.Render, NAudio.CoreAudioApi.Role.Multimedia)
+            Dim sessions = device.AudioSessionManager.Sessions
+            For i As Integer = 0 To sessions.Count - 1
+                Dim s = sessions(i)
+                If s.GetProcessId = pid Then
+                    Return s.AudioMeterInformation.MasterPeakValue
+                End If
+            Next
+        Catch ex As Exception
+            Return 1.0F
+        End Try
+        Return 0.0F
+    End Function
+
+    Public Sub ClearTriggers()
+        SyncLock registeredTriggers
+            registeredTriggers.Clear()
         End SyncLock
     End Sub
 

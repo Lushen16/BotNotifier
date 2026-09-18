@@ -22,6 +22,19 @@ Partial Class Form1
     Friend WithEvents pbAudioLevel As System.Windows.Forms.ProgressBar
     Friend WithEvents lblVolume As System.Windows.Forms.Label
 
+    ' Barra de Perfis e Janela Alvo
+    Friend WithEvents grpProfileBar As System.Windows.Forms.GroupBox
+    Friend WithEvents lblProfileLabel As System.Windows.Forms.Label
+    Friend WithEvents cmbProfiles As System.Windows.Forms.ComboBox
+    Friend WithEvents btnNewProfile As System.Windows.Forms.Button
+    Friend WithEvents btnDeleteProfile As System.Windows.Forms.Button
+    Friend WithEvents lblCharName As System.Windows.Forms.Label
+    Friend WithEvents txtCharName As System.Windows.Forms.TextBox
+    Friend WithEvents lblTargetWindow As System.Windows.Forms.Label
+    Friend WithEvents cmbTargetWindow As System.Windows.Forms.ComboBox
+    Friend WithEvents btnRefreshWindows As System.Windows.Forms.Button
+    Friend WithEvents chkFilterProcess As System.Windows.Forms.CheckBox
+
     ' Categoria 1: GM
     Friend WithEvents grpGm As System.Windows.Forms.GroupBox
     Friend WithEvents chkGm As System.Windows.Forms.CheckBox
@@ -107,6 +120,20 @@ Partial Class Form1
         Me.pbAudioLevel = New System.Windows.Forms.ProgressBar()
         Me.lblVolume = New System.Windows.Forms.Label()
 
+        ' Perfis e Janelas
+        Me.grpProfileBar = New System.Windows.Forms.GroupBox()
+        Me.lblProfileLabel = New System.Windows.Forms.Label()
+        Me.cmbProfiles = New System.Windows.Forms.ComboBox()
+        Me.btnNewProfile = New System.Windows.Forms.Button()
+        Me.btnDeleteProfile = New System.Windows.Forms.Button()
+        Me.lblCharName = New System.Windows.Forms.Label()
+        Me.txtCharName = New System.Windows.Forms.TextBox()
+        Me.lblTargetWindow = New System.Windows.Forms.Label()
+        Me.cmbTargetWindow = New System.Windows.Forms.ComboBox()
+        Me.btnRefreshWindows = New System.Windows.Forms.Button()
+        Me.chkFilterProcess = New System.Windows.Forms.CheckBox()
+
+        ' Categorias
         Me.grpGm = New System.Windows.Forms.GroupBox()
         Me.chkGm = New System.Windows.Forms.CheckBox()
         Me.pbGmMatch = New System.Windows.Forms.ProgressBar()
@@ -157,6 +184,7 @@ Partial Class Form1
         Me.btnRecSeta = New System.Windows.Forms.Button()
         Me.btnFileSeta = New System.Windows.Forms.Button()
 
+        ' Painel Lateral
         Me.grpDiscord = New System.Windows.Forms.GroupBox()
         Me.lblWebUrl = New System.Windows.Forms.Label()
         Me.txtWebhook = New System.Windows.Forms.TextBox()
@@ -178,63 +206,134 @@ Partial Class Form1
 
         Me.SuspendLayout()
 
-        ' Form Settings
+        ' Configurações do Form
         Me.BackColor = System.Drawing.Color.FromArgb(12, 16, 28)
         Me.ForeColor = System.Drawing.Color.White
-        Me.ClientSize = New System.Drawing.Size(1020, 720)
+        Me.ClientSize = New System.Drawing.Size(1040, 750)
         Me.FormBorderStyle = System.Windows.Forms.FormBorderStyle.FixedSingle
         Me.MaximizeBox = False
         Me.StartPosition = System.Windows.Forms.FormStartPosition.CenterScreen
-        Me.Text = "CHARM BOT NOTIFIER - Windows Desktop v1.0"
+        Me.Text = "CHARM BOT NOTIFIER - Multi-Instâncias & Perfis por Personagem"
         Me.Font = New System.Drawing.Font("Segoe UI", 9.0F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point)
 
-        ' Header
+        ' Header Superior
         Me.lblTitle.Text = "🚨 CHARM BOT NOTIFIER"
         Me.lblTitle.Font = New System.Drawing.Font("Segoe UI", 16.0F, System.Drawing.FontStyle.Bold)
         Me.lblTitle.ForeColor = System.Drawing.Color.FromArgb(0, 242, 254)
-        Me.lblTitle.Location = New System.Drawing.Point(20, 15)
-        Me.lblTitle.Size = New System.Drawing.Size(400, 32)
+        Me.lblTitle.Location = New System.Drawing.Point(20, 12)
+        Me.lblTitle.Size = New System.Drawing.Size(380, 32)
 
-        Me.lblSubtitle.Text = "Monitor Acústico Desktop • WASAPI Loopback 24/7"
+        Me.lblSubtitle.Text = "Monitor Acústico Multiclient • Alertas Discord com Nome do Personagem"
         Me.lblSubtitle.ForeColor = System.Drawing.Color.FromArgb(148, 163, 184)
-        Me.lblSubtitle.Location = New System.Drawing.Point(22, 47)
-        Me.lblSubtitle.Size = New System.Drawing.Size(350, 18)
+        Me.lblSubtitle.Location = New System.Drawing.Point(22, 44)
+        Me.lblSubtitle.Size = New System.Drawing.Size(430, 18)
 
         Me.lblStatus.Text = "🟢 OUVINDO ÁUDIO DO WINDOWS"
         Me.lblStatus.Font = New System.Drawing.Font("Segoe UI", 9.5F, System.Drawing.FontStyle.Bold)
         Me.lblStatus.ForeColor = System.Drawing.Color.FromArgb(0, 255, 135)
-        Me.lblStatus.Location = New System.Drawing.Point(400, 22)
-        Me.lblStatus.Size = New System.Drawing.Size(250, 24)
+        Me.lblStatus.Location = New System.Drawing.Point(465, 18)
+        Me.lblStatus.Size = New System.Drawing.Size(250, 22)
 
         Me.btnToggleCapture.Text = "⏹️ Desligar Leitura"
         Me.btnToggleCapture.BackColor = System.Drawing.Color.FromArgb(180, 20, 50)
         Me.btnToggleCapture.ForeColor = System.Drawing.Color.White
         Me.btnToggleCapture.FlatStyle = System.Windows.Forms.FlatStyle.Flat
         Me.btnToggleCapture.Font = New System.Drawing.Font("Segoe UI", 9.0F, System.Drawing.FontStyle.Bold)
-        Me.btnToggleCapture.Location = New System.Drawing.Point(400, 48)
-        Me.btnToggleCapture.Size = New System.Drawing.Size(180, 32)
+        Me.btnToggleCapture.Location = New System.Drawing.Point(465, 42)
+        Me.btnToggleCapture.Size = New System.Drawing.Size(170, 30)
 
-        Me.lblVolume.Text = "Volume do Jogo:"
+        Me.lblVolume.Text = "Volume:"
         Me.lblVolume.ForeColor = System.Drawing.Color.FromArgb(148, 163, 184)
-        Me.lblVolume.Location = New System.Drawing.Point(595, 25)
-        Me.lblVolume.Size = New System.Drawing.Size(100, 18)
+        Me.lblVolume.Location = New System.Drawing.Point(645, 18)
+        Me.lblVolume.Size = New System.Drawing.Size(55, 18)
 
-        Me.pbAudioLevel.Location = New System.Drawing.Point(595, 48)
-        Me.pbAudioLevel.Size = New System.Drawing.Size(80, 32)
+        Me.pbAudioLevel.Location = New System.Drawing.Point(645, 42)
+        Me.pbAudioLevel.Size = New System.Drawing.Size(60, 30)
         Me.pbAudioLevel.Value = 0
 
-        ' Helper de Configuração de Grupo de Categoria
-        SetupCategoryGroup(Me.grpGm, "🚨 MENSAGEM GM", 90, Me.chkGm, Me.pbGmMatch, Me.lblGmMatch, Me.tbGmThreshold, Me.lblGmThreshold, Me.btnPlayGm, Me.btnRecGm, Me.btnFileGm)
-        SetupCategoryGroup(Me.grpMsgPlayer, "💬 MENSAGEM DE JOGADOR", 205, Me.chkMsgPlayer, Me.pbMsgPlayerMatch, Me.lblMsgPlayerMatch, Me.tbMsgPlayerThreshold, Me.lblMsgPlayerThreshold, Me.btnPlayMsgPlayer, Me.btnRecMsgPlayer, Me.btnFileMsgPlayer)
-        SetupCategoryGroup(Me.grpTeleport, "⚡ TELEPORT", 320, Me.chkTeleport, Me.pbTeleportMatch, Me.lblTeleportMatch, Me.tbTeleportThreshold, Me.lblTeleportThreshold, Me.btnPlayTeleport, Me.btnRecTeleport, Me.btnFileTeleport)
-        SetupCategoryGroup(Me.grpPoke, "🐉 POKEMON FORA DA HUNT", 435, Me.chkPoke, Me.pbPokeMatch, Me.lblPokeMatch, Me.tbPokeThreshold, Me.lblPokeThreshold, Me.btnPlayPoke, Me.btnRecPoke, Me.btnFilePoke)
-        SetupCategoryGroup(Me.grpSeta, "🎯 SOM DE SETA", 550, Me.chkSeta, Me.pbSetaMatch, Me.lblSetaMatch, Me.tbSetaThreshold, Me.lblSetaThreshold, Me.btnPlaySeta, Me.btnRecSeta, Me.btnFileSeta)
+        ' PAINEL DE PERFIS E SELEÇÃO DE JANELA / VM
+        Me.grpProfileBar.Text = "Perfil do Personagem e Janela / VM Alvo"
+        Me.grpProfileBar.ForeColor = System.Drawing.Color.FromArgb(0, 242, 254)
+        Me.grpProfileBar.Font = New System.Drawing.Font("Segoe UI", 9.0F, System.Drawing.FontStyle.Bold)
+        Me.grpProfileBar.Location = New System.Drawing.Point(20, 78)
+        Me.grpProfileBar.Size = New System.Drawing.Size(685, 95)
+
+        Me.lblProfileLabel.Text = "Perfil:"
+        Me.lblProfileLabel.ForeColor = System.Drawing.Color.FromArgb(148, 163, 184)
+        Me.lblProfileLabel.Location = New System.Drawing.Point(12, 25)
+        Me.lblProfileLabel.Size = New System.Drawing.Size(42, 20)
+
+        Me.cmbProfiles.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList
+        Me.cmbProfiles.BackColor = System.Drawing.Color.FromArgb(8, 12, 24)
+        Me.cmbProfiles.ForeColor = System.Drawing.Color.White
+        Me.cmbProfiles.Location = New System.Drawing.Point(55, 22)
+        Me.cmbProfiles.Size = New System.Drawing.Size(160, 23)
+
+        Me.btnNewProfile.Text = "➕ Novo"
+        Me.btnNewProfile.BackColor = System.Drawing.Color.FromArgb(0, 150, 200)
+        Me.btnNewProfile.ForeColor = System.Drawing.Color.White
+        Me.btnNewProfile.FlatStyle = System.Windows.Forms.FlatStyle.Flat
+        Me.btnNewProfile.Location = New System.Drawing.Point(220, 21)
+        Me.btnNewProfile.Size = New System.Drawing.Size(68, 25)
+
+        Me.btnDeleteProfile.Text = "🗑️ Excluir"
+        Me.btnDeleteProfile.BackColor = System.Drawing.Color.FromArgb(150, 40, 50)
+        Me.btnDeleteProfile.ForeColor = System.Drawing.Color.White
+        Me.btnDeleteProfile.FlatStyle = System.Windows.Forms.FlatStyle.Flat
+        Me.btnDeleteProfile.Location = New System.Drawing.Point(292, 21)
+        Me.btnDeleteProfile.Size = New System.Drawing.Size(72, 25)
+
+        Me.lblCharName.Text = "Personagem (Nome no Discord):"
+        Me.lblCharName.ForeColor = System.Drawing.Color.FromArgb(148, 163, 184)
+        Me.lblCharName.Location = New System.Drawing.Point(375, 25)
+        Me.lblCharName.Size = New System.Drawing.Size(175, 20)
+
+        Me.txtCharName.BackColor = System.Drawing.Color.FromArgb(8, 12, 24)
+        Me.txtCharName.ForeColor = System.Drawing.Color.White
+        Me.txtCharName.Location = New System.Drawing.Point(555, 22)
+        Me.txtCharName.Size = New System.Drawing.Size(115, 23)
+
+        Me.lblTargetWindow.Text = "Janela / VM:"
+        Me.lblTargetWindow.ForeColor = System.Drawing.Color.FromArgb(148, 163, 184)
+        Me.lblTargetWindow.Location = New System.Drawing.Point(12, 58)
+        Me.lblTargetWindow.Size = New System.Drawing.Size(75, 20)
+
+        Me.cmbTargetWindow.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList
+        Me.cmbTargetWindow.BackColor = System.Drawing.Color.FromArgb(8, 12, 24)
+        Me.cmbTargetWindow.ForeColor = System.Drawing.Color.White
+        Me.cmbTargetWindow.Location = New System.Drawing.Point(90, 55)
+        Me.cmbTargetWindow.Size = New System.Drawing.Size(325, 23)
+
+        Me.btnRefreshWindows.Text = "🔄 Atualizar Janelas"
+        Me.btnRefreshWindows.BackColor = System.Drawing.Color.FromArgb(30, 41, 65)
+        Me.btnRefreshWindows.ForeColor = System.Drawing.Color.White
+        Me.btnRefreshWindows.FlatStyle = System.Windows.Forms.FlatStyle.Flat
+        Me.btnRefreshWindows.Location = New System.Drawing.Point(420, 54)
+        Me.btnRefreshWindows.Size = New System.Drawing.Size(125, 25)
+
+        Me.chkFilterProcess.Text = "Isolar áudio da janela"
+        Me.chkFilterProcess.ForeColor = System.Drawing.Color.White
+        Me.chkFilterProcess.Location = New System.Drawing.Point(552, 56)
+        Me.chkFilterProcess.Size = New System.Drawing.Size(125, 22)
+
+        Me.grpProfileBar.Controls.AddRange(New System.Windows.Forms.Control() { _
+            Me.lblProfileLabel, Me.cmbProfiles, Me.btnNewProfile, Me.btnDeleteProfile, _
+            Me.lblCharName, Me.txtCharName, Me.lblTargetWindow, Me.cmbTargetWindow, _
+            Me.btnRefreshWindows, Me.chkFilterProcess _
+        })
+
+        ' Helper de Configuração de Grupo de Categoria (Y começa em 180)
+        SetupCategoryGroup(Me.grpGm, "🚨 MENSAGEM GM", 180, Me.chkGm, Me.pbGmMatch, Me.lblGmMatch, Me.tbGmThreshold, Me.lblGmThreshold, Me.btnPlayGm, Me.btnRecGm, Me.btnFileGm)
+        SetupCategoryGroup(Me.grpMsgPlayer, "💬 MENSAGEM DE JOGADOR", 290, Me.chkMsgPlayer, Me.pbMsgPlayerMatch, Me.lblMsgPlayerMatch, Me.tbMsgPlayerThreshold, Me.lblMsgPlayerThreshold, Me.btnPlayMsgPlayer, Me.btnRecMsgPlayer, Me.btnFileMsgPlayer)
+        SetupCategoryGroup(Me.grpTeleport, "⚡ TELEPORT", 400, Me.chkTeleport, Me.pbTeleportMatch, Me.lblTeleportMatch, Me.tbTeleportThreshold, Me.lblTeleportThreshold, Me.btnPlayTeleport, Me.btnRecTeleport, Me.btnFileTeleport)
+        SetupCategoryGroup(Me.grpPoke, "🐉 POKEMON FORA DA HUNT", 510, Me.chkPoke, Me.pbPokeMatch, Me.lblPokeMatch, Me.tbPokeThreshold, Me.lblPokeThreshold, Me.btnPlayPoke, Me.btnRecPoke, Me.btnFilePoke)
+        SetupCategoryGroup(Me.grpSeta, "🎯 SOM DE SETA", 620, Me.chkSeta, Me.pbSetaMatch, Me.lblSetaMatch, Me.tbSetaThreshold, Me.lblSetaThreshold, Me.btnPlaySeta, Me.btnRecSeta, Me.btnFileSeta)
 
         ' Painel Lateral: Discord
-        Me.grpDiscord.Text = "Notificações Discord"
+        Me.grpDiscord.Text = "Notificações Discord do Perfil"
         Me.grpDiscord.ForeColor = System.Drawing.Color.FromArgb(0, 242, 254)
-        Me.grpDiscord.Location = New System.Drawing.Point(700, 20)
-        Me.grpDiscord.Size = New System.Drawing.Size(300, 320)
+        Me.grpDiscord.Location = New System.Drawing.Point(715, 12)
+        Me.grpDiscord.Size = New System.Drawing.Size(305, 335)
 
         Me.lblWebUrl.Text = "URL do Webhook:"
         Me.lblWebUrl.ForeColor = System.Drawing.Color.FromArgb(148, 163, 184)
@@ -242,19 +341,19 @@ Partial Class Form1
         Me.lblWebUrl.Size = New System.Drawing.Size(260, 18)
 
         Me.txtWebhook.Location = New System.Drawing.Point(15, 45)
-        Me.txtWebhook.Size = New System.Drawing.Size(265, 23)
+        Me.txtWebhook.Size = New System.Drawing.Size(275, 23)
         Me.txtWebhook.PasswordChar = "*"c
         Me.txtWebhook.BackColor = System.Drawing.Color.FromArgb(8, 12, 24)
         Me.txtWebhook.ForeColor = System.Drawing.Color.White
 
-        Me.lblMenType.Text = "Menção:"
+        Me.lblMenType.Text = "Menção no Alerta:"
         Me.lblMenType.ForeColor = System.Drawing.Color.FromArgb(148, 163, 184)
         Me.lblMenType.Location = New System.Drawing.Point(15, 75)
         Me.lblMenType.Size = New System.Drawing.Size(260, 18)
 
         Me.cmbMention.Items.AddRange(New Object() {"none", "everyone", "here", "role", "user"})
         Me.cmbMention.Location = New System.Drawing.Point(15, 95)
-        Me.cmbMention.Size = New System.Drawing.Size(265, 23)
+        Me.cmbMention.Size = New System.Drawing.Size(275, 23)
         Me.cmbMention.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList
         Me.cmbMention.BackColor = System.Drawing.Color.FromArgb(8, 12, 24)
         Me.cmbMention.ForeColor = System.Drawing.Color.White
@@ -265,42 +364,42 @@ Partial Class Form1
         Me.lblMenId.Size = New System.Drawing.Size(260, 18)
 
         Me.txtMentionId.Location = New System.Drawing.Point(15, 145)
-        Me.txtMentionId.Size = New System.Drawing.Size(265, 23)
+        Me.txtMentionId.Size = New System.Drawing.Size(275, 23)
         Me.txtMentionId.BackColor = System.Drawing.Color.FromArgb(8, 12, 24)
         Me.txtMentionId.ForeColor = System.Drawing.Color.White
 
         Me.chkLocalSound.Text = "Tocar sirene/som local no PC"
         Me.chkLocalSound.ForeColor = System.Drawing.Color.White
         Me.chkLocalSound.Location = New System.Drawing.Point(15, 180)
-        Me.chkLocalSound.Size = New System.Drawing.Size(260, 24)
+        Me.chkLocalSound.Size = New System.Drawing.Size(275, 24)
         Me.chkLocalSound.Checked = True
 
-        Me.btnSaveConfig.Text = "💾 Salvar Configurações"
+        Me.btnSaveConfig.Text = "💾 Salvar Perfil & Configurações"
         Me.btnSaveConfig.BackColor = System.Drawing.Color.FromArgb(0, 120, 215)
         Me.btnSaveConfig.ForeColor = System.Drawing.Color.White
         Me.btnSaveConfig.FlatStyle = System.Windows.Forms.FlatStyle.Flat
         Me.btnSaveConfig.Font = New System.Drawing.Font("Segoe UI", 9.0F, System.Drawing.FontStyle.Bold)
-        Me.btnSaveConfig.Location = New System.Drawing.Point(15, 220)
-        Me.btnSaveConfig.Size = New System.Drawing.Size(265, 34)
+        Me.btnSaveConfig.Location = New System.Drawing.Point(15, 225)
+        Me.btnSaveConfig.Size = New System.Drawing.Size(275, 36)
 
-        Me.btnTestWebhook.Text = "🔔 Testar Webhook"
+        Me.btnTestWebhook.Text = "🔔 Testar Webhook do Personagem"
         Me.btnTestWebhook.BackColor = System.Drawing.Color.FromArgb(88, 101, 242)
         Me.btnTestWebhook.ForeColor = System.Drawing.Color.White
         Me.btnTestWebhook.FlatStyle = System.Windows.Forms.FlatStyle.Flat
         Me.btnTestWebhook.Font = New System.Drawing.Font("Segoe UI", 9.0F, System.Drawing.FontStyle.Bold)
-        Me.btnTestWebhook.Location = New System.Drawing.Point(15, 265)
-        Me.btnTestWebhook.Size = New System.Drawing.Size(265, 34)
+        Me.btnTestWebhook.Location = New System.Drawing.Point(15, 275)
+        Me.btnTestWebhook.Size = New System.Drawing.Size(275, 36)
 
         Me.grpDiscord.Controls.AddRange(New System.Windows.Forms.Control() {Me.lblWebUrl, Me.txtWebhook, Me.lblMenType, Me.cmbMention, Me.lblMenId, Me.txtMentionId, Me.chkLocalSound, Me.btnSaveConfig, Me.btnTestWebhook})
 
         ' Painel de Logs
-        Me.grpLogs.Text = "Histórico de Atividades"
+        Me.grpLogs.Text = "Histórico de Alertas"
         Me.grpLogs.ForeColor = System.Drawing.Color.FromArgb(0, 242, 254)
-        Me.grpLogs.Location = New System.Drawing.Point(700, 350)
-        Me.grpLogs.Size = New System.Drawing.Size(300, 345)
+        Me.grpLogs.Location = New System.Drawing.Point(715, 355)
+        Me.grpLogs.Size = New System.Drawing.Size(305, 370)
 
         Me.lstLogs.Location = New System.Drawing.Point(15, 25)
-        Me.lstLogs.Size = New System.Drawing.Size(270, 305)
+        Me.lstLogs.Size = New System.Drawing.Size(275, 330)
         Me.lstLogs.BackColor = System.Drawing.Color.FromArgb(8, 12, 24)
         Me.lstLogs.ForeColor = System.Drawing.Color.FromArgb(200, 215, 230)
         Me.lstLogs.Font = New System.Drawing.Font("Consolas", 8.5F)
@@ -317,9 +416,10 @@ Partial Class Form1
         Me.menuExit.Text = "Sair"
         Me.contextMenu1.Items.AddRange(New System.Windows.Forms.ToolStripItem() {Me.menuOpen, Me.menuExit})
 
-        ' Adiciona tudo ao Form
+        ' Adiciona controles ao Form
         Me.Controls.AddRange(New System.Windows.Forms.Control() { _
             Me.lblTitle, Me.lblSubtitle, Me.lblStatus, Me.btnToggleCapture, Me.lblVolume, Me.pbAudioLevel, _
+            Me.grpProfileBar, _
             Me.grpGm, Me.grpMsgPlayer, Me.grpTeleport, Me.grpPoke, Me.grpSeta, _
             Me.grpDiscord, Me.grpLogs _
         })
@@ -332,7 +432,7 @@ Partial Class Form1
         grp.ForeColor = System.Drawing.Color.FromArgb(0, 242, 254)
         grp.Font = New System.Drawing.Font("Segoe UI", 9.0F, System.Drawing.FontStyle.Bold)
         grp.Location = New System.Drawing.Point(20, top)
-        grp.Size = New System.Drawing.Size(660, 105)
+        grp.Size = New System.Drawing.Size(685, 102)
 
         chk.Text = "Ativo"
         chk.Checked = True
@@ -360,7 +460,7 @@ Partial Class Form1
         Dim lblSens As New System.Windows.Forms.Label With {
             .Text = "Sensibilidade:",
             .ForeColor = System.Drawing.Color.FromArgb(148, 163, 184),
-            .Location = New System.Drawing.Point(90, 60),
+            .Location = New System.Drawing.Point(90, 58),
             .Size = New System.Drawing.Size(80, 18),
             .Font = New System.Drawing.Font("Segoe UI", 8.5F)
         }
@@ -368,12 +468,12 @@ Partial Class Form1
         tb.Maximum = 98
         tb.Value = 80
         tb.TickStyle = System.Windows.Forms.TickStyle.None
-        tb.Location = New System.Drawing.Point(175, 55)
+        tb.Location = New System.Drawing.Point(175, 54)
         tb.Size = New System.Drawing.Size(120, 25)
 
         lblThresh.Text = "80%"
         lblThresh.ForeColor = System.Drawing.Color.White
-        lblThresh.Location = New System.Drawing.Point(300, 60)
+        lblThresh.Location = New System.Drawing.Point(300, 58)
         lblThresh.Size = New System.Drawing.Size(45, 18)
 
         ' Botões de Ação
@@ -381,22 +481,22 @@ Partial Class Form1
         btnPlay.BackColor = System.Drawing.Color.FromArgb(30, 41, 65)
         btnPlay.ForeColor = System.Drawing.Color.White
         btnPlay.FlatStyle = System.Windows.Forms.FlatStyle.Flat
-        btnPlay.Location = New System.Drawing.Point(360, 35)
-        btnPlay.Size = New System.Drawing.Size(85, 32)
+        btnPlay.Location = New System.Drawing.Point(365, 34)
+        btnPlay.Size = New System.Drawing.Size(95, 32)
 
         btnRec.Text = "🎙️ Gravar"
         btnRec.BackColor = System.Drawing.Color.FromArgb(40, 50, 75)
         btnRec.ForeColor = System.Drawing.Color.White
         btnRec.FlatStyle = System.Windows.Forms.FlatStyle.Flat
-        btnRec.Location = New System.Drawing.Point(455, 35)
-        btnRec.Size = New System.Drawing.Size(95, 32)
+        btnRec.Location = New System.Drawing.Point(470, 34)
+        btnRec.Size = New System.Drawing.Size(100, 32)
 
         btnFile.Text = "📁 Arquivo"
         btnFile.BackColor = System.Drawing.Color.FromArgb(30, 41, 65)
         btnFile.ForeColor = System.Drawing.Color.White
         btnFile.FlatStyle = System.Windows.Forms.FlatStyle.Flat
-        btnFile.Location = New System.Drawing.Point(560, 35)
-        btnFile.Size = New System.Drawing.Size(85, 32)
+        btnFile.Location = New System.Drawing.Point(580, 34)
+        btnFile.Size = New System.Drawing.Size(90, 32)
 
         grp.Controls.AddRange(New System.Windows.Forms.Control() {chk, lblRadar, pbMatch, lblMatch, lblSens, tb, lblThresh, btnPlay, btnRec, btnFile})
     End Sub

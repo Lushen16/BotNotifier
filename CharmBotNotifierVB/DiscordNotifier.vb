@@ -6,10 +6,12 @@ Imports System.Collections.Generic
 Imports System.Web.Script.Serialization
 
 Public Class DiscordNotifier
-    Public Shared Function SendAlert(webhookUrl As String, triggerName As String, confidence As Integer, threshold As Integer, mentionType As String, mentionId As String, colorHex As String) As Boolean
+    Public Shared Function SendAlert(webhookUrl As String, characterName As String, windowTitle As String, triggerName As String, confidence As Integer, threshold As Integer, mentionType As String, mentionId As String, colorHex As String) As Boolean
         If String.IsNullOrEmpty(webhookUrl) OrElse Not webhookUrl.StartsWith("https://discord.com/api/webhooks/") Then
             Return False
         End If
+
+        Dim charPrefix = If(Not String.IsNullOrEmpty(characterName), "[" & characterName.ToUpper() & "] ", "")
 
         Dim mentionText As String = ""
         If mentionType = "everyone" Then
@@ -29,26 +31,29 @@ Public Class DiscordNotifier
         End Try
 
         Dim payload As New Dictionary(Of String, Object) From {
-            {"username", "Charm Bot Notifier"},
+            {"username", If(Not String.IsNullOrEmpty(characterName), "Sentinel (" & characterName & ")", "Charm Bot Notifier")},
             {"avatar_url", "https://i.imgur.com/8Qp49X0.png"}
         }
 
         If Not String.IsNullOrEmpty(mentionText) Then
-            payload("content") = mentionText & " **Alerta Acústico Detectado no Jogo!**"
+            payload("content") = mentionText & " **Alerta Acústico no Personagem " & characterName & "!**"
         End If
 
+        Dim embedTitle As String = "🚨 " & charPrefix & triggerName.ToUpper() & " DETECTADO!"
         Dim embed As New Dictionary(Of String, Object) From {
-            {"title", "🚨 ALERTA: " & triggerName.ToUpper() & " DETECTADO!"},
-            {"description", "O som correspondente a **" & triggerName & "** foi identificado no áudio do sistema com sucesso."},
+            {"title", embedTitle},
+            {"description", "O som correspondente a **" & triggerName & "** foi detectado na instância do personagem **" & characterName & "**."},
             {"color", colorInt},
             {"timestamp", DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ssZ")}
         }
 
         Dim fields As New List(Of Dictionary(Of String, Object)) From {
+            New Dictionary(Of String, Object) From {{"name", "👤 Personagem"}, {"value", "**" & If(String.IsNullOrEmpty(characterName), "Principal", characterName) & "**"}, {"inline", True}},
             New Dictionary(Of String, Object) From {{"name", "🎯 Categoria"}, {"value", "`" & triggerName & "`"}, {"inline", True}},
             New Dictionary(Of String, Object) From {{"name", "📊 Confiança"}, {"value", "**" & confidence.ToString() & "%** (Limiar: " & threshold.ToString() & "%)"}, {"inline", True}},
             New Dictionary(Of String, Object) From {{"name", "⏰ Horário"}, {"value", "`" & DateTime.Now.ToString("HH:mm:ss") & "`"}, {"inline", True}},
-            New Dictionary(Of String, Object) From {{"name", "🖥️ Plataforma"}, {"value", "Charm Bot Notifier (Windows Desktop)"}, {"inline", True}}
+            New Dictionary(Of String, Object) From {{"name", "🖥️ Janela / VM"}, {"value", "`" & If(String.IsNullOrEmpty(windowTitle), "Todas as Janelas", windowTitle) & "`"}, {"inline", True}},
+            New Dictionary(Of String, Object) From {{"name", "🛡️ Sistema"}, {"value", "Charm Bot Notifier Desktop"}, {"inline", True}}
         }
 
         embed("fields") = fields
@@ -71,7 +76,7 @@ Public Class DiscordNotifier
         End Try
     End Function
 
-    Public Shared Function SendTest(webhookUrl As String, mentionType As String, mentionId As String) As Boolean
-        Return SendAlert(webhookUrl, "TESTE DE CONEXÃO", 100, 80, mentionType, mentionId, "#00FF87")
+    Public Shared Function SendTest(webhookUrl As String, characterName As String, windowTitle As String, mentionType As String, mentionId As String) As Boolean
+        Return SendAlert(webhookUrl, characterName, windowTitle, "TESTE DE CONEXÃO", 100, 80, mentionType, mentionId, "#00FF87")
     End Function
 End Class

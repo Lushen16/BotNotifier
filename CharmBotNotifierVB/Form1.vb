@@ -1,14 +1,26 @@
 Imports System
 Imports System.IO
 Imports System.Drawing
+Imports System.Diagnostics
 Imports System.Collections.Generic
 Imports System.Windows.Forms
 Imports System.Threading.Tasks
+
+Public Class WindowItem
+    Public Property ProcessId As Integer
+    Public Property ProcessName As String
+    Public Property WindowTitle As String
+
+    Public Overrides Function ToString() As String
+        Return String.Format("{0} [{1}] (PID: {2})", WindowTitle, ProcessName, ProcessId)
+    End Function
+End Class
 
 Partial Class Form1
     Inherits Form
 
     Private config As AppConfig
+    Private currentProfile As UserProfile
     Private WithEvents audio As AudioEngine
     Private soundsDir As String
     Private activeRecordingTriggerId As String = ""
@@ -24,27 +36,145 @@ Partial Class Form1
         config = ConfigManager.Load()
         audio = New AudioEngine()
 
-        ' Carregar configurações na interface
-        txtWebhook.Text = config.WebhookUrl
-        cmbMention.SelectedItem = If(String.IsNullOrEmpty(config.MentionType), "none", config.MentionType)
-        txtMentionId.Text = config.MentionId
-        chkLocalSound.Checked = config.PlayLocalSound
+        ' Carregar lista de janelas ativas
+        RefreshOpenWindows()
 
-        ' Inicializar os 5 gatilhos
-        InitTriggerRows()
+        ' Carregar Perfis
+        LoadProfilesCombo()
 
         ' Iniciar captura automaticamente
         audio.StartCapture()
 
-        LogActivity("Charm Bot Notifier iniciado. 5 categorias ativas.")
+        LogActivity("Charm Bot Notifier pronto. Suporte a Múltiplos Personagens e Janelas ativo.")
+    End Sub
+
+    Private Sub RefreshOpenWindows()
+        cmbTargetWindow.Items.Clear()
+        cmbTargetWindow.Items.Add(New WindowItem With {.ProcessId = 0, .ProcessName = "Todas", .WindowTitle = "Todas as Janelas / Global"})
+
+        Dim procs = Process.GetProcesses()
+        For Each p As Process In procs
+            Try
+                If Not String.IsNullOrEmpty(p.MainWindowTitle) AndAlso p.Id <> Process.GetCurrentProcess().Id Then
+                    cmbTargetWindow.Items.Add(New WindowItem With {
+                        .ProcessId = p.Id,
+                        .ProcessName = p.ProcessName,
+                        .WindowTitle = p.MainWindowTitle
+                    })
+                End If
+            Catch
+            End Try
+        Next
+
+        If cmbTargetWindow.Items.Count > 0 Then
+            cmbTargetWindow.SelectedIndex = 0
+        End If
+    End Sub
+
+    Private Sub btnRefreshWindows_Click(sender As Object, e As EventArgs) Handles btnRefreshWindows.Click
+        RefreshOpenWindows()
+        LogActivity("Lista de janelas abertas atualizada.")
+    End Sub
+
+    Private Sub LoadProfilesCombo()
+        cmbProfiles.Items.Clear()
+        For Each prof As UserProfile In config.Profiles
+            cmbProfiles.Items.Add(prof)
+        Next
+
+        ' Seleciona o perfil ativo
+        Dim idx = config.Profiles.FindIndex(Function(p) p.Id = config.ActiveProfileId)
+        If idx >= 0 Then
+            cmbProfiles.SelectedIndex = idx
+        ElseIf cmbProfiles.Items.Count > 0 Then
+            cmbProfiles.SelectedIndex = 0
+        End If
+    End Sub
+
+    Private Sub cmbProfiles_SelectedIndexChanged(sender As Object, e As EventArgs) Handles cmbProfiles.SelectedIndexChanged
+        If cmbProfiles.SelectedItem Is Nothing Then Return
+        currentProfile = CType(cmbProfiles.SelectedItem, UserProfile)
+        config.ActiveProfileId = currentProfile.Id
+
+        ' Carregar dados do perfil na tela
+        txtCharName.Text = currentProfile.CharacterName
+        txtWebhook.Text = currentProfile.WebhookUrl
+        cmbMention.SelectedItem = If(String.IsNullOrEmpty(currentProfile.MentionType), "none", currentProfile.MentionType)
+        txtMentionId.Text = currentProfile.MentionId
+        chkLocalSound.Checked = currentProfile.PlayLocalSound
+        chkFilterProcess.Checked = currentProfile.FilterByProcessAudio
+
+        ' Tentar selecionar a janela associada no ComboBox
+        Dim foundWindow As Boolean = False
+        For i As Integer = 0 To cmbTargetWindow.Items.Count - 1
+            Dim wItem = CType(cmbTargetWindow.Items(i), WindowItem)
+            If wItem.ProcessId = currentProfile.TargetPid OrElse (Not String.IsNullOrEmpty(currentProfile.TargetWindowTitle) AndAlso wItem.WindowTitle = currentProfile.TargetWindowTitle) Then
+                cmbTargetWindow.SelectedIndex = i
+                foundWindow = True
+                Exit For
+            End If
+        Next
+        If Not foundWindow AndAlso cmbTargetWindow.Items.Count > 0 Then
+            cmbTargetWindow.SelectedIndex = 0
+        End If
+
+        ' Atualizar AudioEngine com o PID do perfil
+        audio.TargetPid = currentProfile.TargetPid
+        audio.FilterByProcessAudio = currentProfile.FilterByProcessAudio
+
+        ' Carregar gatilhos do perfil
+        InitTriggerRows()
+
+        LogActivity("Perfil carregado: " & currentProfile.ProfileName & " [" & currentProfile.CharacterName & "]")
+    End Sub
+
+    Private Sub btnNewProfile_Click(sender As Object, e As EventArgs) Handles btnNewProfile.Click
+        Dim charName = Microsoft.VisualBasic.Interaction.InputBox("Digite o nome do Personagem para este novo perfil:", "Novo Perfil / Personagem", "Personagem2")
+        If String.IsNullOrEmpty(charName.Trim()) Then Return
+
+        Dim newProf As New UserProfile With {
+            .Id = Guid.NewGuid().ToString(),
+            .ProfileName = "Perfil " & charName.Trim(),
+            .CharacterName = charName.Trim(),
+            .WebhookUrl = If(currentProfile IsNot Nothing, currentProfile.WebhookUrl, ""),
+            .MentionType = "none"
+        }
+
+        newProf.Triggers.Add(New TriggerConfig With {.Id = "gm", .Name = "MENSAGEM GM", .SoundFile = "gm.wav", .Threshold = 82, .Cooldown = 6})
+        newProf.Triggers.Add(New TriggerConfig With {.Id = "msg_player", .Name = "MENSAGEM DE JOGADOR", .SoundFile = "msg_player.wav", .Threshold = 78, .Cooldown = 6})
+        newProf.Triggers.Add(New TriggerConfig With {.Id = "teleport", .Name = "TELEPORT", .SoundFile = "teleport.wav", .Threshold = 80, .Cooldown = 5})
+        newProf.Triggers.Add(New TriggerConfig With {.Id = "pokemon", .Name = "POKEMON FORA DA HUNT", .SoundFile = "pokemon.wav", .Threshold = 80, .Cooldown = 10})
+        newProf.Triggers.Add(New TriggerConfig With {.Id = "seta", .Name = "SOM DE SETA", .SoundFile = "seta.wav", .Threshold = 80, .Cooldown = 5})
+
+        config.Profiles.Add(newProf)
+        config.ActiveProfileId = newProf.Id
+        ConfigManager.Save(config)
+
+        LoadProfilesCombo()
+        MessageBox.Show("Perfil para o personagem '" & charName & "' criado com sucesso!", "Novo Perfil", MessageBoxButtons.OK, MessageBoxIcon.Information)
+    End Sub
+
+    Private Sub btnDeleteProfile_Click(sender As Object, e As EventArgs) Handles btnDeleteProfile.Click
+        If config.Profiles.Count <= 1 Then
+            MessageBox.Show("Você deve manter pelo menos um perfil cadastrado!", "Aviso", MessageBoxButtons.OK, MessageBoxIcon.Warning)
+            Return
+        End If
+
+        If MessageBox.Show("Deseja realmente excluir o perfil '" & currentProfile.ProfileName & "'?", "Confirmar Exclusão", MessageBoxButtons.YesNo, MessageBoxIcon.Question) = DialogResult.Yes Then
+            config.Profiles.Remove(currentProfile)
+            config.ActiveProfileId = config.Profiles(0).Id
+            ConfigManager.Save(config)
+            LoadProfilesCombo()
+        End If
     End Sub
 
     Private Sub InitTriggerRows()
-        For Each trig As TriggerConfig In config.Triggers
+        audio.ClearTriggers()
+
+        For Each trig As TriggerConfig In currentProfile.Triggers
             Dim wavPath = Path.Combine(soundsDir, trig.SoundFile)
             audio.RegisterTrigger(trig.Id, trig.Name, wavPath, trig.Threshold, trig.Cooldown)
 
-            ' Atualizar controles visuais correspondentes
             Select Case trig.Id
                 Case "gm"
                     chkGm.Checked = trig.Enabled
@@ -138,21 +268,20 @@ Partial Class Form1
             Return
         End If
 
-        Dim trig = config.Triggers.Find(Function(t) t.Id = triggerId)
+        Dim trig = currentProfile.Triggers.Find(Function(t) t.Id = triggerId)
         Dim trigName = If(trig IsNot Nothing, trig.Name, triggerId.ToUpper())
+        Dim charName = If(Not String.IsNullOrEmpty(currentProfile.CharacterName), currentProfile.CharacterName, "Personagem")
+        Dim winTitle = currentProfile.TargetWindowTitle
 
-        LogActivity("🚨 SOM DETECTADO: " & trigName & " (" & confidence.ToString() & "%)")
+        LogActivity("🚨 [" & charName.ToUpper() & "] SOM DETECTADO: " & trigName & " (" & confidence.ToString() & "%)")
 
-        ' Tocar alerta sonoro local se habilitado
         If chkLocalSound.Checked Then
             System.Media.SystemSounds.Exclamation.Play()
         End If
 
-        ' Notificação na bandeja do Windows
-        notifyIcon1.ShowBalloonTip(3000, "Charm Bot Notifier", "Detectado: " & trigName & " (" & confidence.ToString() & "%)", ToolTipIcon.Warning)
+        notifyIcon1.ShowBalloonTip(3500, "Charm Bot Notifier [" & charName & "]", "Detectado: " & trigName & " (" & confidence.ToString() & "%)", ToolTipIcon.Warning)
 
-        ' Enviar para o Discord
-        If Not String.IsNullOrEmpty(config.WebhookUrl) Then
+        If Not String.IsNullOrEmpty(currentProfile.WebhookUrl) Then
             Dim colorMap As New Dictionary(Of String, String) From {
                 {"gm", "#FF0844"},
                 {"msg_player", "#FFB703"},
@@ -162,15 +291,18 @@ Partial Class Form1
             }
             Dim hex = If(colorMap.ContainsKey(triggerId), colorMap(triggerId), "#FF0844")
             Dim threshold = If(trig IsNot Nothing, trig.Threshold, 80)
+            Dim url = currentProfile.WebhookUrl
+            Dim menType = currentProfile.MentionType
+            Dim menId = currentProfile.MentionId
 
             Task.Factory.StartNew(Sub()
-                Dim sent = DiscordNotifier.SendAlert(config.WebhookUrl, trigName, confidence, threshold, config.MentionType, config.MentionId, hex)
+                Dim sent = DiscordNotifier.SendAlert(url, charName, winTitle, trigName, confidence, threshold, menType, menId, hex)
                 If InvokeRequired Then
                     Invoke(Sub()
                         If sent Then
-                            LogActivity("✅ Alerta enviado ao Discord com sucesso!")
+                            LogActivity("✅ Alerta de [" & charName & "] enviado ao Discord!")
                         Else
-                            LogActivity("❌ Falha ao enviar alerta ao Discord.")
+                            LogActivity("❌ Falha ao enviar alerta de [" & charName & "] ao Discord.")
                         End If
                     End Sub)
                 End If
@@ -195,7 +327,7 @@ Partial Class Form1
         AudioEngine.PlayWav(Path.Combine(soundsDir, "seta.wav"))
     End Sub
 
-    ' Botões de Gravação Direta do Jogo
+    ' Gravação de Amostra
     Private Sub ToggleRecording(triggerId As String, targetBtn As Button)
         Dim targetWav = Path.Combine(soundsDir, triggerId & ".wav")
 
@@ -211,14 +343,13 @@ Partial Class Form1
             targetBtn.BackColor = Color.FromArgb(40, 50, 75)
             activeRecordingTriggerId = ""
 
-            ' Recarregar assinatura
-            Dim trig = config.Triggers.Find(Function(t) t.Id = triggerId)
+            Dim trig = currentProfile.Triggers.Find(Function(t) t.Id = triggerId)
             If trig IsNot Nothing Then
                 audio.RegisterTrigger(triggerId, trig.Name, targetWav, trig.Threshold, trig.Cooldown)
             End If
 
-            LogActivity("Amostra gravada e associada com sucesso para " & triggerId & "!")
-            MessageBox.Show("Amostra gravada com sucesso! O novo som já está memorizado.", "Charm Bot Notifier", MessageBoxButtons.OK, MessageBoxIcon.Information)
+            LogActivity("Amostra salva para " & triggerId & "!")
+            MessageBox.Show("Amostra gravada com sucesso! O som foi associado ao perfil de " & currentProfile.CharacterName & ".", "Sucesso", MessageBoxButtons.OK, MessageBoxIcon.Information)
         End If
     End Sub
 
@@ -238,7 +369,7 @@ Partial Class Form1
         ToggleRecording("seta", btnRecSeta)
     End Sub
 
-    ' Upload de Arquivo
+    ' Arquivo
     Private Sub SelectCustomAudioFile(triggerId As String)
         Using ofd As New OpenFileDialog()
             ofd.Filter = "Arquivos de Áudio (*.wav;*.mp3)|*.wav;*.mp3"
@@ -246,13 +377,13 @@ Partial Class Form1
                 Dim targetWav = Path.Combine(soundsDir, triggerId & ".wav")
                 File.Copy(ofd.FileName, targetWav, True)
 
-                Dim trig = config.Triggers.Find(Function(t) t.Id = triggerId)
+                Dim trig = currentProfile.Triggers.Find(Function(t) t.Id = triggerId)
                 If trig IsNot Nothing Then
                     audio.RegisterTrigger(triggerId, trig.Name, targetWav, trig.Threshold, trig.Cooldown)
                 End If
 
                 LogActivity("Arquivo de áudio importado para " & triggerId & "!")
-                MessageBox.Show("Áudio carregado com sucesso para " & triggerId & "!", "Sucesso", MessageBoxButtons.OK, MessageBoxIcon.Information)
+                MessageBox.Show("Áudio associado com sucesso a " & triggerId & "!", "Sucesso", MessageBoxButtons.OK, MessageBoxIcon.Information)
             End If
         End Using
     End Sub
@@ -273,10 +404,10 @@ Partial Class Form1
         SelectCustomAudioFile("seta")
     End Sub
 
-    ' Sliders de Sensibilidade
+    ' Sliders
     Private Sub UpdateSlider(triggerId As String, val As Integer, lbl As Label)
         lbl.Text = val.ToString() & "%"
-        Dim trig = config.Triggers.Find(Function(t) t.Id = triggerId)
+        Dim trig = currentProfile.Triggers.Find(Function(t) t.Id = triggerId)
         If trig IsNot Nothing Then
             trig.Threshold = val
             audio.UpdateTriggerSettings(trig.Id, trig.Threshold, trig.Cooldown, trig.Enabled)
@@ -299,44 +430,63 @@ Partial Class Form1
         UpdateSlider("seta", tbSetaThreshold.Value, lblSetaThreshold)
     End Sub
 
-    ' Salvar Configurações
+    ' Salvar Perfil e Configurações
     Private Sub btnSaveConfig_Click(sender As Object, e As EventArgs) Handles btnSaveConfig.Click
-        config.WebhookUrl = txtWebhook.Text.Trim()
-        config.MentionType = If(cmbMention.SelectedItem IsNot Nothing, cmbMention.SelectedItem.ToString(), "none")
-        config.MentionId = txtMentionId.Text.Trim()
-        config.PlayLocalSound = chkLocalSound.Checked
+        If currentProfile Is Nothing Then Return
+
+        currentProfile.CharacterName = txtCharName.Text.Trim()
+        currentProfile.ProfileName = "Perfil " & currentProfile.CharacterName
+        currentProfile.WebhookUrl = txtWebhook.Text.Trim()
+        currentProfile.MentionType = If(cmbMention.SelectedItem IsNot Nothing, cmbMention.SelectedItem.ToString(), "none")
+        currentProfile.MentionId = txtMentionId.Text.Trim()
+        currentProfile.PlayLocalSound = chkLocalSound.Checked
+        currentProfile.FilterByProcessAudio = chkFilterProcess.Checked
+
+        ' Salvar janela selecionada
+        If cmbTargetWindow.SelectedItem IsNot Nothing Then
+            Dim wItem = CType(cmbTargetWindow.SelectedItem, WindowItem)
+            currentProfile.TargetPid = wItem.ProcessId
+            currentProfile.TargetProcessName = wItem.ProcessName
+            currentProfile.TargetWindowTitle = wItem.WindowTitle
+            audio.TargetPid = wItem.ProcessId
+        End If
+        audio.FilterByProcessAudio = currentProfile.FilterByProcessAudio
 
         ConfigManager.Save(config)
-        LogActivity("Configurações salvas no config.json.")
-        MessageBox.Show("Configurações salvas com sucesso!", "Charm Bot Notifier", MessageBoxButtons.OK, MessageBoxIcon.Information)
+        LoadProfilesCombo()
+
+        LogActivity("Perfil '" & currentProfile.CharacterName & "' e configurações salvos com sucesso!")
+        MessageBox.Show("Perfil de '" & currentProfile.CharacterName & "' salvo com sucesso!", "Charm Bot Notifier", MessageBoxButtons.OK, MessageBoxIcon.Information)
     End Sub
 
-    ' Testar Webhook do Discord
+    ' Testar Webhook do Perfil
     Private Sub btnTestWebhook_Click(sender As Object, e As EventArgs) Handles btnTestWebhook.Click
         Dim url = txtWebhook.Text.Trim()
         If String.IsNullOrEmpty(url) Then
-            MessageBox.Show("Insira a URL do Webhook do Discord!", "Aviso", MessageBoxButtons.OK, MessageBoxIcon.Warning)
+            MessageBox.Show("Insira a URL do Webhook do Discord neste perfil!", "Aviso", MessageBoxButtons.OK, MessageBoxIcon.Warning)
             Return
         End If
 
         btnTestWebhook.Enabled = False
         btnTestWebhook.Text = "Enviando..."
 
+        Dim charName = txtCharName.Text.Trim()
+        Dim winTitle = If(cmbTargetWindow.SelectedItem IsNot Nothing, cmbTargetWindow.SelectedItem.ToString(), "Janela Principal")
         Dim mention = If(cmbMention.SelectedItem IsNot Nothing, cmbMention.SelectedItem.ToString(), "none")
         Dim mentionId = txtMentionId.Text.Trim()
 
         Task.Factory.StartNew(Sub()
-            Dim sent = DiscordNotifier.SendTest(url, mention, mentionId)
+            Dim sent = DiscordNotifier.SendTest(url, charName, winTitle, mention, mentionId)
             If InvokeRequired Then
                 Invoke(Sub()
                     btnTestWebhook.Enabled = True
-                    btnTestWebhook.Text = "🔔 Testar Webhook"
+                    btnTestWebhook.Text = "🔔 Testar Webhook do Personagem"
 
                     If sent Then
-                        LogActivity("✅ Mensagem de teste enviada ao Discord com sucesso!")
-                        MessageBox.Show("Mensagem de teste enviada com sucesso no Discord!", "Sucesso", MessageBoxButtons.OK, MessageBoxIcon.Information)
+                        LogActivity("✅ Teste de [" & charName & "] enviado ao Discord!")
+                        MessageBox.Show("Mensagem de teste de '" & charName & "' enviada com sucesso ao Discord!", "Sucesso", MessageBoxButtons.OK, MessageBoxIcon.Information)
                     Else
-                        LogActivity("❌ Erro ao enviar teste para o Discord.")
+                        LogActivity("❌ Erro ao enviar teste de [" & charName & "] ao Discord.")
                         MessageBox.Show("Falha ao enviar para o Discord. Verifique a URL do Webhook.", "Erro", MessageBoxButtons.OK, MessageBoxIcon.Error)
                     End If
                 End Sub)
@@ -350,12 +500,12 @@ Partial Class Form1
         If lstLogs.Items.Count > 100 Then lstLogs.Items.RemoveAt(lstLogs.Items.Count - 1)
     End Sub
 
-    ' Minimizar para o System Tray
     Private Sub Form1_Resize(sender As Object, e As EventArgs) Handles MyBase.Resize
         If WindowState = FormWindowState.Minimized Then
             Hide()
             notifyIcon1.Visible = True
-            notifyIcon1.ShowBalloonTip(1500, "Charm Bot Notifier", "Rodando em segundo plano perto do relógio!", ToolTipIcon.Info)
+            Dim charName = If(currentProfile IsNot Nothing, currentProfile.CharacterName, "Personagem")
+            notifyIcon1.ShowBalloonTip(1800, "Charm Bot Notifier [" & charName & "]", "Vigiando o personagem em segundo plano perto do relógio!", ToolTipIcon.Info)
         End If
     End Sub
 

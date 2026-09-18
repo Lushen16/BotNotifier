@@ -169,3 +169,171 @@ Public Class RoundedPanel
         Return path
     End Function
 End Class
+
+Public Class TriggerRowControl
+    Inherits Panel
+
+    Public Property Trigger As TriggerConfig
+    Public Event PlayRequested(sender As TriggerRowControl, trig As TriggerConfig)
+    Public Event DeleteRequested(sender As TriggerRowControl, trig As TriggerConfig)
+    Public Event SettingsChanged(sender As TriggerRowControl, trig As TriggerConfig)
+
+    Private chkEnabled As CheckBox
+    Private lblTitle As Label
+    Private lblRadar As Label
+    Private pbMatch As ProgressBar
+    Private lblMatch As Label
+    Private lblSens As Label
+    Private tbSens As TrackBar
+    Private lblSensVal As Label
+    Private btnPlay As RoundedButton
+    Private btnDelete As RoundedButton
+
+    Public Sub New(trig As TriggerConfig)
+        Me.Trigger = trig
+        Me.Size = New Size(700, 52)
+        Me.BackColor = Color.FromArgb(14, 20, 32)
+        Me.Margin = New Padding(0, 0, 0, 8)
+        SetStyle(ControlStyles.AllPaintingInWmPaint Or ControlStyles.UserPaint Or ControlStyles.OptimizedDoubleBuffer Or ControlStyles.ResizeRedraw, True)
+
+        chkEnabled = New CheckBox With {
+            .Text = "Ativo",
+            .Checked = trig.Enabled,
+            .ForeColor = Color.White,
+            .Location = New Point(12, 15),
+            .Size = New Size(56, 22),
+            .Font = New Font("Segoe UI", 8.5F)
+        }
+        AddHandler chkEnabled.CheckedChanged, Sub()
+            trig.Enabled = chkEnabled.Checked
+            RaiseEvent SettingsChanged(Me, trig)
+        End Sub
+
+        lblTitle = New Label With {
+            .Text = trig.Name,
+            .Font = New Font("Segoe UI", 9.5F, FontStyle.Bold),
+            .ForeColor = Color.FromArgb(0, 229, 255),
+            .Location = New Point(70, 16),
+            .Size = New Size(160, 20)
+        }
+
+        lblRadar = New Label With {
+            .Text = "Radar:",
+            .ForeColor = Color.FromArgb(148, 163, 184),
+            .Location = New Point(234, 17),
+            .Size = New Size(42, 18),
+            .Font = New Font("Segoe UI", 8.5F)
+        }
+
+        pbMatch = New ProgressBar With {
+            .Location = New Point(276, 17),
+            .Size = New Size(80, 18),
+            .Value = 0
+        }
+
+        lblMatch = New Label With {
+            .Text = "0%",
+            .ForeColor = Color.White,
+            .Location = New Point(360, 17),
+            .Size = New Size(38, 18),
+            .Font = New Font("Segoe UI", 8.5F)
+        }
+
+        lblSens = New Label With {
+            .Text = "Sens:",
+            .ForeColor = Color.FromArgb(148, 163, 184),
+            .Location = New Point(400, 17),
+            .Size = New Size(38, 18),
+            .Font = New Font("Segoe UI", 8.5F)
+        }
+
+        tbSens = New TrackBar With {
+            .Minimum = 50,
+            .Maximum = 98,
+            .Value = Math.Max(50, Math.Min(98, trig.Threshold)),
+            .TickStyle = TickStyle.None,
+            .Location = New Point(438, 14),
+            .Size = New Size(75, 24)
+        }
+        lblSensVal = New Label With {
+            .Text = tbSens.Value.ToString() & "%",
+            .ForeColor = Color.White,
+            .Location = New Point(516, 17),
+            .Size = New Size(38, 18),
+            .Font = New Font("Segoe UI", 8.5F)
+        }
+        AddHandler tbSens.Scroll, Sub()
+            trig.Threshold = tbSens.Value
+            lblSensVal.Text = tbSens.Value.ToString() & "%"
+            RaiseEvent SettingsChanged(Me, trig)
+        End Sub
+
+        btnPlay = New RoundedButton With {
+            .Text = "▶️ Ouvir",
+            .Radius = 8,
+            .NormalColor = Color.FromArgb(16, 26, 44),
+            .BorderColor = Color.FromArgb(56, 189, 248),
+            .HoverColor = Color.FromArgb(24, 40, 68),
+            .ForeColor = Color.FromArgb(224, 242, 254),
+            .Font = New Font("Segoe UI", 8.5F, FontStyle.Bold),
+            .Location = New Point(558, 10),
+            .Size = New Size(68, 32)
+        }
+        AddHandler btnPlay.Click, Sub()
+            RaiseEvent PlayRequested(Me, trig)
+        End Sub
+
+        btnDelete = New RoundedButton With {
+            .Text = "🗑️",
+            .Radius = 8,
+            .NormalColor = Color.FromArgb(42, 18, 26),
+            .BorderColor = Color.FromArgb(244, 63, 94),
+            .HoverColor = Color.FromArgb(64, 22, 34),
+            .ForeColor = Color.FromArgb(254, 205, 211),
+            .Font = New Font("Segoe UI", 9.0F, FontStyle.Bold),
+            .Location = New Point(634, 10),
+            .Size = New Size(48, 32)
+        }
+        AddHandler btnDelete.Click, Sub()
+            RaiseEvent DeleteRequested(Me, trig)
+        End Sub
+
+        Controls.AddRange(New Control() {chkEnabled, lblTitle, lblRadar, pbMatch, lblMatch, lblSens, tbSens, lblSensVal, btnPlay, btnDelete})
+    End Sub
+
+    Public Sub UpdateMatchPercent(percent As Integer)
+        pbMatch.Value = Math.Max(0, Math.Min(100, percent))
+        lblMatch.Text = percent.ToString() & "%"
+    End Sub
+
+    Protected Overrides Sub OnPaint(e As PaintEventArgs)
+        Dim g = e.Graphics
+        g.SmoothingMode = SmoothingMode.AntiAlias
+        Dim rect = New Rectangle(0, 0, Width - 1, Height - 1)
+        Using path = GetRoundedRectangle(rect, 10)
+            Using br As New SolidBrush(BackColor)
+                g.FillPath(br, path)
+            End Using
+            Using pen As New Pen(Color.FromArgb(28, 38, 58), 1.0F)
+                g.DrawPath(pen, path)
+            End Using
+        End Using
+    End Sub
+
+    Private Function GetRoundedRectangle(rect As Rectangle, r As Integer) As GraphicsPath
+        Dim path As New GraphicsPath()
+        Dim d = r * 2
+        If d > rect.Width Then d = rect.Width
+        If d > rect.Height Then d = rect.Height
+        If d <= 0 Then
+            path.AddRectangle(rect)
+            Return path
+        End If
+        path.AddArc(rect.X, rect.Y, d, d, 180, 90)
+        path.AddArc(rect.Right - d, rect.Y, d, d, 270, 90)
+        path.AddArc(rect.Right - d, rect.Bottom - d, d, d, 0, 90)
+        path.AddArc(rect.X, rect.Bottom - d, d, d, 90, 90)
+        path.CloseFigure()
+        Return path
+    End Function
+End Class

@@ -23,7 +23,9 @@ Partial Class Form1
     Private currentProfile As UserProfile
     Private WithEvents audio As AudioEngine
     Private soundsDir As String
-    Private activeRecordingTriggerId As String = ""
+    Private tempRecordedWavPath As String = ""
+    Private triggerRowMap As New Dictionary(Of String, TriggerRowControl)
+    Private isUpdatingProfilesList As Boolean = False
 
     Public Sub New()
         InitializeComponent()
@@ -44,18 +46,19 @@ Partial Class Form1
         End Try
 
         soundsDir = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "sounds")
+        If Not Directory.Exists(soundsDir) Then Directory.CreateDirectory(soundsDir)
         AudioEngine.GenerateDefaultTones(soundsDir)
 
         config = ConfigManager.Load()
         audio = New AudioEngine()
 
-        ' Carregar lista de janelas ativas
+        ' Carregar janelas ativas
         RefreshOpenWindows()
 
         ' Carregar Perfis
         LoadProfilesCombo()
 
-        ' Iniciar captura automaticamente
+        ' Iniciar escuta
         audio.StartCapture()
 
         LogActivity("SentinelBot pronto. Monitoramento acústico multiclient ativo.")
@@ -89,8 +92,6 @@ Partial Class Form1
         LogActivity("Lista de janelas abertas atualizada.")
     End Sub
 
-    Private isUpdatingProfilesList As Boolean = False
-
     Private Sub LoadProfilesCombo()
         isUpdatingProfilesList = True
         cmbProfiles.Items.Clear()
@@ -98,7 +99,6 @@ Partial Class Form1
             cmbProfiles.Items.Add(prof)
         Next
 
-        ' Seleciona o perfil ativo
         Dim idx = config.Profiles.FindIndex(Function(p) p.Id = config.ActiveProfileId)
         If idx >= 0 Then
             cmbProfiles.SelectedIndex = idx
@@ -111,7 +111,6 @@ Partial Class Form1
     Private Sub cmbProfiles_SelectedIndexChanged(sender As Object, e As EventArgs) Handles cmbProfiles.SelectedIndexChanged
         If isUpdatingProfilesList OrElse cmbProfiles.SelectedItem Is Nothing Then Return
 
-        ' Salva o perfil anterior automaticamente antes de trocar
         If currentProfile IsNot Nothing AndAlso Not Object.ReferenceEquals(currentProfile, cmbProfiles.SelectedItem) Then
             SaveCurrentProfileValues()
             ConfigManager.Save(config)
@@ -128,7 +127,7 @@ Partial Class Form1
         chkLocalSound.Checked = currentProfile.PlayLocalSound
         chkFilterProcess.Checked = currentProfile.FilterByProcessAudio
 
-        ' Tentar selecionar a janela associada no ComboBox
+        ' Janela alvo
         Dim foundWindow As Boolean = False
         For i As Integer = 0 To cmbTargetWindow.Items.Count - 1
             Dim wItem = CType(cmbTargetWindow.Items(i), WindowItem)
@@ -142,12 +141,11 @@ Partial Class Form1
             cmbTargetWindow.SelectedIndex = 0
         End If
 
-        ' Atualizar AudioEngine com o PID do perfil
         audio.TargetPid = currentProfile.TargetPid
         audio.FilterByProcessAudio = currentProfile.FilterByProcessAudio
 
-        ' Carregar gatilhos do perfil
-        InitTriggerRows()
+        ' Carregar gatilhos dinâmicos
+        RenderTriggerRows()
 
         LogActivity("Perfil carregado: " & currentProfile.ProfileName & " [" & currentProfile.CharacterName & "]")
     End Sub
@@ -161,14 +159,9 @@ Partial Class Form1
             .ProfileName = "Perfil " & charName.Trim(),
             .CharacterName = charName.Trim(),
             .WebhookUrl = If(currentProfile IsNot Nothing, currentProfile.WebhookUrl, ""),
-            .MentionType = "none"
+            .MentionType = "none",
+            .Triggers = New List(Of TriggerConfig)()
         }
-
-        newProf.Triggers.Add(New TriggerConfig With {.Id = "gm", .Name = "MENSAGEM GM", .SoundFile = "gm.wav", .Threshold = 82, .Cooldown = 6})
-        newProf.Triggers.Add(New TriggerConfig With {.Id = "msg_player", .Name = "MENSAGEM DE JOGADOR", .SoundFile = "msg_player.wav", .Threshold = 78, .Cooldown = 6})
-        newProf.Triggers.Add(New TriggerConfig With {.Id = "teleport", .Name = "TELEPORT", .SoundFile = "teleport.wav", .Threshold = 80, .Cooldown = 5})
-        newProf.Triggers.Add(New TriggerConfig With {.Id = "pokemon", .Name = "POKEMON FORA DA HUNT", .SoundFile = "pokemon.wav", .Threshold = 80, .Cooldown = 10})
-        newProf.Triggers.Add(New TriggerConfig With {.Id = "seta", .Name = "SOM DE SETA", .SoundFile = "seta.wav", .Threshold = 80, .Cooldown = 5})
 
         config.Profiles.Add(newProf)
         config.ActiveProfileId = newProf.Id
@@ -192,38 +185,199 @@ Partial Class Form1
         End If
     End Sub
 
-    Private Sub InitTriggerRows()
+    ' =========================================================================
+    ' RENDERIZAÇÃO DINÂMICA DE GATILHOS ATIVOS
+    ' =========================================================================
+    Private Sub RenderTriggerRows()
+        pnlTriggersContainer.SuspendLayout()
+        pnlTriggersContainer.Controls.Clear()
+        triggerRowMap.Clear()
         audio.ClearTriggers()
 
-        For Each trig As TriggerConfig In currentProfile.Triggers
+        If currentProfile Is Nothing OrElse currentProfile.Triggers.Count = 0 Then
+            lblEmptyNotice.Visible = True
+            grpTriggersList.Text = "  🛡️ GATILHOS ATIVOS NESTE PERFIL (0)  "
+            pnlTriggersContainer.ResumeLayout()
+            Return
+        End If
+
+        lblEmptyNotice.Visible = False
+        grpTriggersList.Text = "  🛡️ GATILHOS ATIVOS NESTE PERFIL (" & currentProfile.Triggers.Count.ToString() & ")  "
+
+        Dim yOffset As Integer = 0
+        For Each trig In currentProfile.Triggers
             Dim wavPath = Path.Combine(soundsDir, trig.SoundFile)
             audio.RegisterTrigger(trig.Id, trig.Name, wavPath, trig.Threshold, trig.Cooldown)
 
-            Select Case trig.Id
-                Case "gm"
-                    chkGm.Checked = trig.Enabled
-                    tbGmThreshold.Value = trig.Threshold
-                    lblGmThreshold.Text = trig.Threshold.ToString() & "%"
-                Case "msg_player"
-                    chkMsgPlayer.Checked = trig.Enabled
-                    tbMsgPlayerThreshold.Value = trig.Threshold
-                    lblMsgPlayerThreshold.Text = trig.Threshold.ToString() & "%"
-                Case "teleport"
-                    chkTeleport.Checked = trig.Enabled
-                    tbTeleportThreshold.Value = trig.Threshold
-                    lblTeleportThreshold.Text = trig.Threshold.ToString() & "%"
-                Case "pokemon"
-                    chkPoke.Checked = trig.Enabled
-                    tbPokeThreshold.Value = trig.Threshold
-                    lblPokeThreshold.Text = trig.Threshold.ToString() & "%"
-                Case "seta"
-                    chkSeta.Checked = trig.Enabled
-                    tbSetaThreshold.Value = trig.Threshold
-                    lblSetaThreshold.Text = trig.Threshold.ToString() & "%"
-            End Select
+            Dim row As New TriggerRowControl(trig)
+            row.Location = New Point(0, yOffset)
+            row.Width = pnlTriggersContainer.ClientSize.Width - 10
+
+            AddHandler row.PlayRequested, AddressOf TriggerRow_PlayRequested
+            AddHandler row.DeleteRequested, AddressOf TriggerRow_DeleteRequested
+            AddHandler row.SettingsChanged, AddressOf TriggerRow_SettingsChanged
+
+            triggerRowMap(trig.Id) = row
+            pnlTriggersContainer.Controls.Add(row)
+            yOffset += row.Height + 8
         Next
+
+        pnlTriggersContainer.ResumeLayout()
     End Sub
 
+    Private Sub TriggerRow_PlayRequested(sender As TriggerRowControl, trig As TriggerConfig)
+        Dim wavPath = Path.Combine(soundsDir, trig.SoundFile)
+        AudioEngine.PlayWav(wavPath)
+    End Sub
+
+    Private Sub TriggerRow_SettingsChanged(sender As TriggerRowControl, trig As TriggerConfig)
+        audio.UpdateTriggerSettings(trig.Id, trig.Threshold, trig.Cooldown, trig.Enabled)
+    End Sub
+
+    Private Sub TriggerRow_DeleteRequested(sender As TriggerRowControl, trig As TriggerConfig)
+        If MessageBox.Show("Deseja realmente remover o gatilho '" & trig.Name & "' deste perfil?", "Remover Gatilho", MessageBoxButtons.YesNo, MessageBoxIcon.Question) = DialogResult.Yes Then
+            currentProfile.Triggers.Remove(trig)
+            audio.UnregisterTrigger(trig.Id)
+            RenderTriggerRows()
+            ConfigManager.Save(config)
+            LogActivity("Gatilho '" & trig.Name & "' removido do perfil.")
+        End If
+    End Sub
+
+    ' =========================================================================
+    ' ESTÚDIO DE GRAVAÇÃO E CLASSIFICAÇÃO DE NOVO SOM
+    ' =========================================================================
+    Private Sub btnRecordNew_Click(sender As Object, e As EventArgs) Handles btnRecordNew.Click
+        If Not audio.IsRecordingSample Then
+            tempRecordedWavPath = Path.Combine(soundsDir, "sample_" & DateTime.Now.Ticks.ToString() & ".wav")
+            audio.StartRecordingSample(tempRecordedWavPath)
+
+            btnRecordNew.Text = "⏹️ Concluir Gravação"
+            btnRecordNew.NormalColor = Color.FromArgb(220, 38, 38)
+            btnRecordNew.BorderColor = Color.FromArgb(248, 113, 113)
+            btnRecordNew.ForeColor = Color.White
+            lblRecStatus.Text = "🔴 Gravando áudio do jogo... Faça o som tocar agora!"
+            lblRecStatus.ForeColor = Color.FromArgb(244, 63, 94)
+
+            btnPreviewRecorded.Enabled = False
+            btnSaveNewTrigger.Enabled = False
+            LogActivity("Iniciada gravação de áudio do jogo...")
+        Else
+            audio.StopRecordingSample()
+
+            btnRecordNew.Text = "🎙️ Gravar Som do Jogo"
+            btnRecordNew.NormalColor = Color.FromArgb(36, 16, 26)
+            btnRecordNew.BorderColor = Color.FromArgb(244, 63, 94)
+            btnRecordNew.ForeColor = Color.FromArgb(254, 205, 211)
+
+            btnPreviewRecorded.Enabled = True
+            btnSaveNewTrigger.Enabled = True
+
+            lblRecStatus.Text = "✅ Amostra gravada! Ouça ou escolha a categoria e clique em 'Salvar e Ativar Alerta'."
+            lblRecStatus.ForeColor = Color.FromArgb(0, 255, 194)
+            LogActivity("Amostra de áudio capturada com sucesso.")
+        End If
+    End Sub
+
+    Private Sub btnImportFile_Click(sender As Object, e As EventArgs) Handles btnImportFile.Click
+        Using ofd As New OpenFileDialog()
+            ofd.Filter = "Arquivos de Áudio (*.wav;*.mp3)|*.wav;*.mp3"
+            If ofd.ShowDialog() = DialogResult.OK Then
+                tempRecordedWavPath = Path.Combine(soundsDir, "sample_" & DateTime.Now.Ticks.ToString() & ".wav")
+                File.Copy(ofd.FileName, tempRecordedWavPath, True)
+
+                btnPreviewRecorded.Enabled = True
+                btnSaveNewTrigger.Enabled = True
+
+                lblRecStatus.Text = "✅ Arquivo importado! Escolha a categoria e clique em 'Salvar e Ativar Alerta'."
+                lblRecStatus.ForeColor = Color.FromArgb(0, 255, 194)
+                LogActivity("Arquivo de áudio importado: " & Path.GetFileName(ofd.FileName))
+            End If
+        End Using
+    End Sub
+
+    Private Sub cmbClassify_SelectedIndexChanged(sender As Object, e As EventArgs) Handles cmbClassify.SelectedIndexChanged
+        If cmbClassify.SelectedIndex = 5 Then
+            txtCustomName.Visible = True
+            txtCustomName.Focus()
+        Else
+            txtCustomName.Visible = False
+        End If
+    End Sub
+
+    Private Sub btnPreviewRecorded_Click(sender As Object, e As EventArgs) Handles btnPreviewRecorded.Click
+        If Not String.IsNullOrEmpty(tempRecordedWavPath) AndAlso File.Exists(tempRecordedWavPath) Then
+            AudioEngine.PlayWav(tempRecordedWavPath)
+        Else
+            MessageBox.Show("Nenhuma amostra gravada ou importada ainda!", "Aviso", MessageBoxButtons.OK, MessageBoxIcon.Warning)
+        End If
+    End Sub
+
+    Private Sub btnSaveNewTrigger_Click(sender As Object, e As EventArgs) Handles btnSaveNewTrigger.Click
+        If String.IsNullOrEmpty(tempRecordedWavPath) OrElse Not File.Exists(tempRecordedWavPath) Then
+            MessageBox.Show("Grave ou importe um áudio antes de salvar!", "Aviso", MessageBoxButtons.OK, MessageBoxIcon.Warning)
+            Return
+        End If
+
+        Dim chosenName As String = ""
+        Dim chosenId As String = ""
+
+        If cmbClassify.SelectedIndex = 5 Then
+            chosenName = txtCustomName.Text.Trim()
+            If String.IsNullOrEmpty(chosenName) Then
+                MessageBox.Show("Por favor, digite o nome do alerta personalizado!", "Aviso", MessageBoxButtons.OK, MessageBoxIcon.Warning)
+                txtCustomName.Focus()
+                Return
+            End If
+            chosenId = "custom_" & DateTime.Now.Ticks.ToString().Substring(10)
+        Else
+            chosenName = cmbClassify.SelectedItem.ToString()
+            Select Case cmbClassify.SelectedIndex
+                Case 0 : chosenId = "gm"
+                Case 1 : chosenId = "msg_player"
+                Case 2 : chosenId = "teleport"
+                Case 3 : chosenId = "pokemon"
+                Case 4 : chosenId = "seta"
+            End Select
+        End If
+
+        ' Salvar arquivo definitivo
+        Dim finalWavName = chosenId & ".wav"
+        Dim finalWavPath = Path.Combine(soundsDir, finalWavName)
+        File.Copy(tempRecordedWavPath, finalWavPath, True)
+
+        ' Checar se já existe no perfil
+        Dim existing = currentProfile.Triggers.Find(Function(t) t.Id = chosenId)
+        If existing IsNot Nothing Then
+            existing.Name = chosenName
+            existing.SoundFile = finalWavName
+        Else
+            Dim newTrig As New TriggerConfig With {
+                .Id = chosenId,
+                .Name = chosenName,
+                .SoundFile = finalWavName,
+                .Threshold = 80,
+                .Cooldown = 6,
+                .Enabled = True
+            }
+            currentProfile.Triggers.Add(newTrig)
+        End If
+
+        RenderTriggerRows()
+        ConfigManager.Save(config)
+
+        btnPreviewRecorded.Enabled = False
+        btnSaveNewTrigger.Enabled = False
+        lblRecStatus.Text = "✅ Gatilho '" & chosenName & "' ativado com sucesso!"
+        lblRecStatus.ForeColor = Color.FromArgb(0, 255, 194)
+
+        LogActivity("Gatilho '" & chosenName & "' adicionado e ativo no perfil!")
+        MessageBox.Show("Gatilho '" & chosenName & "' adicionado e ativado com sucesso!", "SentinelBot", MessageBoxButtons.OK, MessageBoxIcon.Information)
+    End Sub
+
+    ' =========================================================================
+    ' EVENTOS DE ÁUDIO E DETECÇÃO
+    ' =========================================================================
     Private Sub btnToggleCapture_Click(sender As Object, e As EventArgs) Handles btnToggleCapture.Click
         If btnToggleCapture.Text.Contains("Ativar") OrElse btnToggleCapture.Text.Contains("Ligar") Then
             audio.StartCapture()
@@ -273,23 +427,9 @@ Partial Class Form1
             Return
         End If
 
-        Select Case triggerId
-            Case "gm"
-                pbGmMatch.Value = percent
-                lblGmMatch.Text = percent.ToString() & "%"
-            Case "msg_player"
-                pbMsgPlayerMatch.Value = percent
-                lblMsgPlayerMatch.Text = percent.ToString() & "%"
-            Case "teleport"
-                pbTeleportMatch.Value = percent
-                lblTeleportMatch.Text = percent.ToString() & "%"
-            Case "pokemon"
-                pbPokeMatch.Value = percent
-                lblPokeMatch.Text = percent.ToString() & "%"
-            Case "seta"
-                pbSetaMatch.Value = percent
-                lblSetaMatch.Text = percent.ToString() & "%"
-        End Select
+        If triggerRowMap.ContainsKey(triggerId) Then
+            triggerRowMap(triggerId).UpdateMatchPercent(percent)
+        End If
     End Sub
 
     Private Sub audio_SoundDetected(triggerId As String, confidence As Integer) Handles audio.SoundDetected
@@ -299,7 +439,9 @@ Partial Class Form1
         End If
 
         Dim trig = currentProfile.Triggers.Find(Function(t) t.Id = triggerId)
-        Dim trigName = If(trig IsNot Nothing, trig.Name, triggerId.ToUpper())
+        If trig Is Nothing OrElse Not trig.Enabled Then Return
+
+        Dim trigName = trig.Name
         Dim charName = If(Not String.IsNullOrEmpty(currentProfile.CharacterName), currentProfile.CharacterName, "Personagem")
         Dim winTitle = currentProfile.TargetWindowTitle
 
@@ -312,15 +454,14 @@ Partial Class Form1
         notifyIcon1.ShowBalloonTip(3500, "SentinelBot [" & charName & "]", "Detectado: " & trigName & " (" & confidence.ToString() & "%)", ToolTipIcon.Warning)
 
         If Not String.IsNullOrEmpty(currentProfile.WebhookUrl) Then
-            Dim colorMap As New Dictionary(Of String, String) From {
-                {"gm", "#FF0844"},
-                {"msg_player", "#FFB703"},
-                {"teleport", "#A855F7"},
-                {"pokemon", "#00F2FE"},
-                {"seta", "#FF4D00"}
-            }
-            Dim hex = If(colorMap.ContainsKey(triggerId), colorMap(triggerId), "#FF0844")
-            Dim threshold = If(trig IsNot Nothing, trig.Threshold, 80)
+            Dim hex = "#00E5FF"
+            If trig.Id = "gm" OrElse trig.Name.ToUpper().Contains("GM") Then hex = "#FF0844"
+            If trig.Id = "msg_player" OrElse trig.Name.ToUpper().Contains("JOGADOR") Then hex = "#FFB703"
+            If trig.Id = "teleport" OrElse trig.Name.ToUpper().Contains("TELEPORT") Then hex = "#A855F7"
+            If trig.Id = "pokemon" OrElse trig.Name.ToUpper().Contains("POKEMON") Then hex = "#00F2FE"
+            If trig.Id = "seta" OrElse trig.Name.ToUpper().Contains("SETA") Then hex = "#FF4D00"
+
+            Dim threshold = trig.Threshold
             Dim url = currentProfile.WebhookUrl
             Dim menType = currentProfile.MentionType
             Dim menId = currentProfile.MentionId
@@ -340,131 +481,9 @@ Partial Class Form1
         End If
     End Sub
 
-    ' Botões de Ouvir
-    Private Sub btnPlayGm_Click(sender As Object, e As EventArgs) Handles btnPlayGm.Click
-        AudioEngine.PlayWav(Path.Combine(soundsDir, "gm.wav"))
-    End Sub
-    Private Sub btnPlayMsgPlayer_Click(sender As Object, e As EventArgs) Handles btnPlayMsgPlayer.Click
-        AudioEngine.PlayWav(Path.Combine(soundsDir, "msg_player.wav"))
-    End Sub
-    Private Sub btnPlayTeleport_Click(sender As Object, e As EventArgs) Handles btnPlayTeleport.Click
-        AudioEngine.PlayWav(Path.Combine(soundsDir, "teleport.wav"))
-    End Sub
-    Private Sub btnPlayPoke_Click(sender As Object, e As EventArgs) Handles btnPlayPoke.Click
-        AudioEngine.PlayWav(Path.Combine(soundsDir, "pokemon.wav"))
-    End Sub
-    Private Sub btnPlaySeta_Click(sender As Object, e As EventArgs) Handles btnPlaySeta.Click
-        AudioEngine.PlayWav(Path.Combine(soundsDir, "seta.wav"))
-    End Sub
-
-    ' Gravação de Amostra
-    Private Sub ToggleRecording(triggerId As String, targetBtn As RoundedButton)
-        Dim targetWav = Path.Combine(soundsDir, triggerId & ".wav")
-
-        If Not audio.IsRecordingSample Then
-            audio.StartRecordingSample(targetWav)
-            activeRecordingTriggerId = triggerId
-            targetBtn.Text = "⏹️ Parar"
-            targetBtn.NormalColor = Color.FromArgb(220, 38, 38)
-            targetBtn.BorderColor = Color.FromArgb(248, 113, 113)
-            targetBtn.ForeColor = Color.White
-            LogActivity("Gravando áudio do sistema para " & triggerId & "... Toque o som no jogo agora!")
-        Else
-            audio.StopRecordingSample()
-            targetBtn.Text = "🎙️ Gravar"
-            targetBtn.NormalColor = Color.FromArgb(36, 16, 26)
-            targetBtn.BorderColor = Color.FromArgb(244, 63, 94)
-            targetBtn.ForeColor = Color.FromArgb(254, 205, 211)
-            activeRecordingTriggerId = ""
-
-            Dim trig = currentProfile.Triggers.Find(Function(t) t.Id = triggerId)
-            If trig IsNot Nothing Then
-                audio.RegisterTrigger(triggerId, trig.Name, targetWav, trig.Threshold, trig.Cooldown)
-            End If
-
-            LogActivity("Amostra salva para " & triggerId & "!")
-            MessageBox.Show("Amostra gravada com sucesso! O som foi associado ao perfil de " & currentProfile.CharacterName & ".", "Sucesso", MessageBoxButtons.OK, MessageBoxIcon.Information)
-        End If
-    End Sub
-
-    Private Sub btnRecGm_Click(sender As Object, e As EventArgs) Handles btnRecGm.Click
-        ToggleRecording("gm", btnRecGm)
-    End Sub
-    Private Sub btnRecMsgPlayer_Click(sender As Object, e As EventArgs) Handles btnRecMsgPlayer.Click
-        ToggleRecording("msg_player", btnRecMsgPlayer)
-    End Sub
-    Private Sub btnRecTeleport_Click(sender As Object, e As EventArgs) Handles btnRecTeleport.Click
-        ToggleRecording("teleport", btnRecTeleport)
-    End Sub
-    Private Sub btnRecPoke_Click(sender As Object, e As EventArgs) Handles btnRecPoke.Click
-        ToggleRecording("pokemon", btnRecPoke)
-    End Sub
-    Private Sub btnRecSeta_Click(sender As Object, e As EventArgs) Handles btnRecSeta.Click
-        ToggleRecording("seta", btnRecSeta)
-    End Sub
-
-    ' Arquivo
-    Private Sub SelectCustomAudioFile(triggerId As String)
-        Using ofd As New OpenFileDialog()
-            ofd.Filter = "Arquivos de Áudio (*.wav;*.mp3)|*.wav;*.mp3"
-            If ofd.ShowDialog() = DialogResult.OK Then
-                Dim targetWav = Path.Combine(soundsDir, triggerId & ".wav")
-                File.Copy(ofd.FileName, targetWav, True)
-
-                Dim trig = currentProfile.Triggers.Find(Function(t) t.Id = triggerId)
-                If trig IsNot Nothing Then
-                    audio.RegisterTrigger(triggerId, trig.Name, targetWav, trig.Threshold, trig.Cooldown)
-                End If
-
-                LogActivity("Arquivo de áudio importado para " & triggerId & "!")
-                MessageBox.Show("Áudio associado com sucesso a " & triggerId & "!", "Sucesso", MessageBoxButtons.OK, MessageBoxIcon.Information)
-            End If
-        End Using
-    End Sub
-
-    Private Sub btnFileGm_Click(sender As Object, e As EventArgs) Handles btnFileGm.Click
-        SelectCustomAudioFile("gm")
-    End Sub
-    Private Sub btnFileMsgPlayer_Click(sender As Object, e As EventArgs) Handles btnFileMsgPlayer.Click
-        SelectCustomAudioFile("msg_player")
-    End Sub
-    Private Sub btnFileTeleport_Click(sender As Object, e As EventArgs) Handles btnFileTeleport.Click
-        SelectCustomAudioFile("teleport")
-    End Sub
-    Private Sub btnFilePoke_Click(sender As Object, e As EventArgs) Handles btnFilePoke.Click
-        SelectCustomAudioFile("pokemon")
-    End Sub
-    Private Sub btnFileSeta_Click(sender As Object, e As EventArgs) Handles btnFileSeta.Click
-        SelectCustomAudioFile("seta")
-    End Sub
-
-    ' Sliders
-    Private Sub UpdateSlider(triggerId As String, val As Integer, lbl As Label)
-        lbl.Text = val.ToString() & "%"
-        Dim trig = currentProfile.Triggers.Find(Function(t) t.Id = triggerId)
-        If trig IsNot Nothing Then
-            trig.Threshold = val
-            audio.UpdateTriggerSettings(trig.Id, trig.Threshold, trig.Cooldown, trig.Enabled)
-        End If
-    End Sub
-
-    Private Sub tbGmThreshold_Scroll(sender As Object, e As EventArgs) Handles tbGmThreshold.Scroll
-        UpdateSlider("gm", tbGmThreshold.Value, lblGmThreshold)
-    End Sub
-    Private Sub tbMsgPlayerThreshold_Scroll(sender As Object, e As EventArgs) Handles tbMsgPlayerThreshold.Scroll
-        UpdateSlider("msg_player", tbMsgPlayerThreshold.Value, lblMsgPlayerThreshold)
-    End Sub
-    Private Sub tbTeleportThreshold_Scroll(sender As Object, e As EventArgs) Handles tbTeleportThreshold.Scroll
-        UpdateSlider("teleport", tbTeleportThreshold.Value, lblTeleportThreshold)
-    End Sub
-    Private Sub tbPokeThreshold_Scroll(sender As Object, e As EventArgs) Handles tbPokeThreshold.Scroll
-        UpdateSlider("pokemon", tbPokeThreshold.Value, lblPokeThreshold)
-    End Sub
-    Private Sub tbSetaThreshold_Scroll(sender As Object, e As EventArgs) Handles tbSetaThreshold.Scroll
-        UpdateSlider("seta", tbSetaThreshold.Value, lblSetaThreshold)
-    End Sub
-
-    ' Salvar Perfil e Configurações
+    ' =========================================================================
+    ' SALVAMENTO & DISCORD
+    ' =========================================================================
     Private Sub SaveCurrentProfileValues()
         If currentProfile Is Nothing Then Return
 
@@ -476,7 +495,6 @@ Partial Class Form1
         currentProfile.PlayLocalSound = chkLocalSound.Checked
         currentProfile.FilterByProcessAudio = chkFilterProcess.Checked
 
-        ' Salvar janela selecionada
         If cmbTargetWindow.SelectedItem IsNot Nothing Then
             Dim wItem = CType(cmbTargetWindow.SelectedItem, WindowItem)
             currentProfile.TargetPid = wItem.ProcessId
@@ -485,27 +503,6 @@ Partial Class Form1
             audio.TargetPid = wItem.ProcessId
         End If
         audio.FilterByProcessAudio = currentProfile.FilterByProcessAudio
-
-        ' Salvar estado e limiares dos 5 gatilhos
-        For Each trig In currentProfile.Triggers
-            Select Case trig.Id
-                Case "gm"
-                    trig.Enabled = chkGm.Checked
-                    trig.Threshold = tbGmThreshold.Value
-                Case "msg_player"
-                    trig.Enabled = chkMsgPlayer.Checked
-                    trig.Threshold = tbMsgPlayerThreshold.Value
-                Case "teleport"
-                    trig.Enabled = chkTeleport.Checked
-                    trig.Threshold = tbTeleportThreshold.Value
-                Case "pokemon"
-                    trig.Enabled = chkPoke.Checked
-                    trig.Threshold = tbPokeThreshold.Value
-                Case "seta"
-                    trig.Enabled = chkSeta.Checked
-                    trig.Threshold = tbSetaThreshold.Value
-            End Select
-        Next
     End Sub
 
     Private Sub btnSaveConfig_Click(sender As Object, e As EventArgs) Handles btnSaveConfig.Click
@@ -519,7 +516,6 @@ Partial Class Form1
         MessageBox.Show("Perfil de '" & currentProfile.CharacterName & "' salvo com sucesso!", "SentinelBot", MessageBoxButtons.OK, MessageBoxIcon.Information)
     End Sub
 
-    ' Testar Webhook do Perfil
     Private Sub btnTestWebhook_Click(sender As Object, e As EventArgs) Handles btnTestWebhook.Click
         Dim url = txtWebhook.Text.Trim()
         If String.IsNullOrEmpty(url) Then

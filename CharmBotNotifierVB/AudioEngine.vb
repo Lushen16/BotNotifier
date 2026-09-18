@@ -226,6 +226,14 @@ Public Class AudioEngine
         End SyncLock
     End Sub
 
+    Public Sub UnregisterTrigger(id As String)
+        SyncLock registeredTriggers
+            If registeredTriggers.ContainsKey(id) Then
+                registeredTriggers.Remove(id)
+            End If
+        End SyncLock
+    End Sub
+
     Private Function ComputeCosineSimilarity(liveFrames As List(Of Single()), targetFrames As List(Of Single())) As Single
         Dim dotProduct As Double = 0
         Dim normA As Double = 0

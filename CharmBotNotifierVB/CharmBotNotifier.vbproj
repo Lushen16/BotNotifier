@@ -6,7 +6,7 @@
     <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
     <ProjectGuid>{A823B452-9F14-4B45-87CE-887413998D01}</ProjectGuid>
     <OutputType>WinExe</OutputType>
-    <StartupObject>SentinelBot.Form1</StartupObject>
+    <StartupObject>SentinelBot.Program</StartupObject>
     <RootNamespace>SentinelBot</RootNamespace>
     <AssemblyName>SentinelBot</AssemblyName>
     <ApplicationIcon>sentinel.ico</ApplicationIcon>
@@ -49,6 +49,18 @@
     <Reference Include="System.Core" />
   </ItemGroup>
   <ItemGroup>
+    <EmbeddedResource Include="lib\NAudio.dll">
+      <LogicalName>SentinelBot.NAudio.dll</LogicalName>
+    </EmbeddedResource>
+    <EmbeddedResource Include="sentinel.ico">
+      <LogicalName>SentinelBot.sentinel.ico</LogicalName>
+    </EmbeddedResource>
+    <EmbeddedResource Include="sentinel.png">
+      <LogicalName>SentinelBot.sentinel.png</LogicalName>
+    </EmbeddedResource>
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="Program.vb" />
     <Compile Include="RoundedControls.vb" />
     <Compile Include="AudioEngine.vb" />
     <Compile Include="ConfigManager.vb" />

@@ -32,21 +32,76 @@ Partial Class Form1
     End Sub
 
     Private Sub Form1_Load(sender As Object, e As EventArgs) Handles MyBase.Load
+        Dim baseDir = AppDomain.CurrentDomain.BaseDirectory
+
+        ' Carregar ícone e logo (procurando em data\, dados\, recursos\, ou embutidos no .exe)
         Try
-            Dim icoPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "sentinel.ico")
-            If File.Exists(icoPath) Then
-                Me.Icon = New Icon(icoPath)
-                notifyIcon1.Icon = Me.Icon
+            Dim subDirs = {"data", "dados", "recursos", "assets"}
+            Dim icoPaths As New List(Of String)()
+            For Each sd In subDirs
+                icoPaths.Add(Path.Combine(baseDir, sd, "sentinel.ico"))
+            Next
+            icoPaths.Add(Path.Combine(baseDir, "sentinel.ico"))
+
+            For Each ip In icoPaths
+                If File.Exists(ip) Then
+                    Me.Icon = New Icon(ip)
+                    notifyIcon1.Icon = Me.Icon
+                    Exit For
+                End If
+            Next
+
+            If Me.Icon Is Nothing Then
+                Try
+                    Me.Icon = Drawing.Icon.ExtractAssociatedIcon(Application.ExecutablePath)
+                    notifyIcon1.Icon = Me.Icon
+                Catch
+                End Try
             End If
-            Dim pngPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "sentinel.png")
-            If File.Exists(pngPath) Then
-                picSentinelLogo.Image = Image.FromFile(pngPath)
+
+            Dim pngPaths As New List(Of String)()
+            For Each sd In subDirs
+                pngPaths.Add(Path.Combine(baseDir, sd, "sentinel.png"))
+            Next
+            pngPaths.Add(Path.Combine(baseDir, "sentinel.png"))
+
+            For Each pp In pngPaths
+                If File.Exists(pp) Then
+                    picSentinelLogo.Image = Image.FromFile(pp)
+                    Exit For
+                End If
+            Next
+
+            If picSentinelLogo.Image Is Nothing Then
+                Dim asm = Reflection.Assembly.GetExecutingAssembly()
+                Using stm = asm.GetManifestResourceStream("SentinelBot.sentinel.png")
+                    If stm IsNot Nothing Then
+                        picSentinelLogo.Image = Image.FromStream(stm)
+                    End If
+                End Using
             End If
         Catch ex As Exception
         End Try
 
-        soundsDir = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "sounds")
-        If Not Directory.Exists(soundsDir) Then Directory.CreateDirectory(soundsDir)
+        ' Sons em data\sounds\ (ou dados\sounds, recursos\sounds, assets\sounds)
+        Dim candidateSoundDirs = {
+            Path.Combine(baseDir, "data", "sounds"),
+            Path.Combine(baseDir, "dados", "sounds"),
+            Path.Combine(baseDir, "recursos", "sounds"),
+            Path.Combine(baseDir, "assets", "sounds"),
+            Path.Combine(baseDir, "sounds")
+        }
+        soundsDir = ""
+        For Each cDir In candidateSoundDirs
+            If Directory.Exists(cDir) Then
+                soundsDir = cDir
+                Exit For
+            End If
+        Next
+        If String.IsNullOrEmpty(soundsDir) Then
+            soundsDir = Path.Combine(baseDir, "data", "sounds")
+            Directory.CreateDirectory(soundsDir)
+        End If
         AudioEngine.GenerateDefaultTones(soundsDir)
 
         config = ConfigManager.Load()
